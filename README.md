@@ -1,24 +1,40 @@
-# Hi, I'm Syauqi 👋
+# My Wallet
 
-I'm **Muhammad Syairozy Syauqi**, a Process Engineer at **PT. Krakatau Tirta Industri**, an indirect subsidiary of **PT. Krakatau Steel** through the sub-holding **PT. Krakatau Sarana Infrastruktur**. I'm currently a participant in **P3MDI**.
+Aplikasi pencatat keuangan pribadi, dilindungi password.
 
-## About me
+- Catat pemasukan dan pengeluaran (jumlah, kategori, tanggal, catatan)
+- Ringkasan per bulan: pemasukan, pengeluaran, dan total saldo
+- Grafik pengeluaran per kategori
+- Login dengan satu password (sesi berlaku 30 hari)
 
-- 🌱 I'm learning **life and vibe coding**
-- 🏃 Outside of work, I enjoy **running and gaming**
-- 💬 Ask me about **process engineering and Excel**
+Dibuat dengan Next.js 16. Data disimpan di Upstash Redis saat online, atau di file lokal saat development.
 
-## Projects
+## Deploy ke Vercel
 
-| Project | What it is |
-| --- | --- |
-| [Stride](https://github.com/m-s-syauqi/Claude-Playground/tree/stride) | A simple, private running schedule tracker that runs in your browser. Plan your week, log runs and track your weekly distance. |
+1. Buka [vercel.com/new](https://vercel.com/new), lalu import repo `my-wallet` dari GitHub.
+2. Sebelum klik **Deploy**, buka **Environment Variables** dan isi:
+   - `APP_PASSWORD`: password untuk masuk ke aplikasi
+   - `SESSION_SECRET`: teks acak minimal 32 karakter. Buat dengan `openssl rand -base64 32`, atau ketik 40+ karakter acak.
+3. Klik **Deploy**.
+4. Di project Vercel, buka tab **Storage**, pilih **Upstash** (Redis), lalu buat database dan hubungkan ke project ini. Vercel otomatis mengisi `KV_REST_API_URL` dan `KV_REST_API_TOKEN`.
+5. Buka tab **Deployments**, lalu klik **Redeploy** pada deployment terakhir supaya database terbaca.
 
-## Skills
+Setelah itu buka `https://<nama-project>.vercel.app`. Halaman login akan muncul, dan tanpa password tidak ada data yang bisa dilihat.
 
-Process Engineering · Microsoft Excel
+## Development lokal
 
-## Get in touch
+```bash
+cp .env.example .env.local   # lalu isi APP_PASSWORD dan SESSION_SECRET
+npm install
+npm run dev
+```
 
-- GitHub: [@m-s-syauqi](https://github.com/m-s-syauqi)
-- LinkedIn: [linkedin.com/in/msyairozys](https://www.linkedin.com/in/msyairozys/)
+Buka http://localhost:3000. Tanpa variabel Redis, data disimpan di `.data/transactions.json`.
+
+## Keamanan
+
+- Semua halaman dan aksi data mengecek sesi login di server.
+- Cookie sesi bersifat `httpOnly` dan ditandatangani dengan HMAC memakai `SESSION_SECRET`.
+- Password salah diberi jeda 1 detik untuk memperlambat tebakan.
+- Halaman tidak diindeks mesin pencari (`robots.txt` dan meta `noindex`).
+- Untuk logout di semua perangkat, ganti `SESSION_SECRET` di Vercel lalu redeploy.
