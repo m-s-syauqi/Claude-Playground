@@ -13,7 +13,7 @@ I'm **Muhammad Syairozy Syauqi**, a Process Engineer at **PT. Krakatau Tirta Ind
 
 | Project | What it is |
 | --- | --- |
-| [Claude-Playground](https://github.com/m-s-syauqi/Claude-Playground) | Where I try Claude Code and experiment with vibe coding. |
+| Stride | A simple, private running schedule tracker that runs in your browser. Plan your week, log runs and track your weekly distance. |
 
 ## Skills
 
