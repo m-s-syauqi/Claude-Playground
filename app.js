@@ -4,6 +4,9 @@
   // ---------- Constants ----------
   const RUNS_KEY = 'stride.runs.v1';
   const SETTINGS_KEY = 'stride.settings.v1';
+  const DELETED_KEY = 'stride.deleted.v1'; // tombstones, so deletions sync to other devices
+  const SYNC_KEY = 'stride.sync.v1';
+  const TOMBSTONE_DAYS = 400;
   const KM_PER_MI = 1.609344;
   const CHART_WEEKS = 8;
   const RANGE_DAYS = 30;
@@ -79,6 +82,7 @@
   // ---------- State & storage ----------
   const state = {
     runs: [],
+    deleted: [], // [{ id, updatedAt }]
     unit: 'km',
     view: 'week', // 'week' | 'days30'
     weekStart: mondayOf(new Date()),
@@ -86,11 +90,23 @@
     editingId: null,
   };
 
+  // What each run looked like when last saved (without updatedAt). save() compares
+  // against it to stamp changed runs and record deletions, whichever code path
+  // changed them.
+  let snapshot = new Map();
+  const signature = (r) => { const { updatedAt, ...rest } = r; return JSON.stringify(rest); };
+  const takeSnapshot = () => { snapshot = new Map(state.runs.map((r) => [r.id, signature(r)])); };
+
   function load() {
     try {
       const runs = JSON.parse(localStorage.getItem(RUNS_KEY) || '[]');
       state.runs = Array.isArray(runs) ? runs.map(normalizeRun).filter(Boolean) : [];
     } catch { state.runs = []; }
+    try {
+      const del = JSON.parse(localStorage.getItem(DELETED_KEY) || '[]');
+      state.deleted = Array.isArray(del) ? del.filter((t) => t && typeof t.id === 'string') : [];
+    } catch { state.deleted = []; }
+    takeSnapshot();
     try {
       const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
       if (s.unit === 'mi' || s.unit === 'km') state.unit = s.unit;
@@ -98,8 +114,29 @@
     } catch { /* ignore */ }
   }
   function save() {
+    const now = Date.now();
+    const ids = new Set();
+    let changed = false;
+    for (const r of state.runs) {
+      ids.add(r.id);
+      if (snapshot.get(r.id) !== signature(r)) { r.updatedAt = now; changed = true; }
+    }
+    const gone = [...snapshot.keys()].filter((id) => !ids.has(id));
+    if (gone.length) {
+      const goneSet = new Set(gone);
+      state.deleted = state.deleted.filter((t) => !goneSet.has(t.id)).concat(gone.map((id) => ({ id, updatedAt: now })));
+      changed = true;
+    }
+    // A run that came back (undo) outranks its old tombstone; drop the tombstone.
+    state.deleted = state.deleted.filter((t) => !ids.has(t.id) && t.updatedAt > now - TOMBSTONE_DAYS * 864e5);
+    takeSnapshot();
+    persist();
+    if (changed) scheduleSync();
+  }
+  function persist() {
     try {
       localStorage.setItem(RUNS_KEY, JSON.stringify(state.runs));
+      localStorage.setItem(DELETED_KEY, JSON.stringify(state.deleted));
       localStorage.setItem(SETTINGS_KEY, JSON.stringify({ unit: state.unit, view: state.view }));
     } catch {
       toast('Could not save. Browser storage may be full or disabled.');
@@ -119,6 +156,7 @@
       actualKm: num(r.actualKm),
       durationSec: num(r.durationSec),
       notes: typeof r.notes === 'string' ? r.notes.slice(0, 2000) : '',
+      updatedAt: typeof r.updatedAt === 'number' && Number.isFinite(r.updatedAt) ? r.updatedAt : 0,
     };
   }
 
@@ -686,6 +724,186 @@
     render();
   }
 
+  // ---------- Sync between devices ----------
+  // Devices that share a sync code send their runs (and deletions) to /api/sync,
+  // which merges them with the stored copy and returns the result.
+  const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 32 symbols, no 0/O or 1/I
+  const sync = { code: '', lastSync: 0, status: 'off', busy: false, again: false, timer: null };
+  const cleanCode = (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const validCode = (c) => typeof c === 'string' && c.length === 20 && [...c].every((ch) => CODE_ALPHABET.includes(ch));
+  const formatCode = (c) => c.match(/.{1,5}/g).join('-');
+  const newCode = () => [...crypto.getRandomValues(new Uint8Array(20))].map((b) => CODE_ALPHABET[b % 32]).join(''); // 100 bits
+  const syncLink = () => `${location.origin}${location.pathname}#sync=${formatCode(sync.code)}`;
+
+  function loadSync() {
+    try {
+      const s = JSON.parse(localStorage.getItem(SYNC_KEY) || '{}');
+      if (validCode(s.code)) { sync.code = s.code; sync.lastSync = Number(s.lastSync) || 0; sync.status = 'idle'; }
+    } catch { /* ignore */ }
+  }
+  function saveSync() {
+    try {
+      if (sync.code) localStorage.setItem(SYNC_KEY, JSON.stringify({ code: sync.code, lastSync: sync.lastSync }));
+      else localStorage.removeItem(SYNC_KEY);
+    } catch { /* ignore */ }
+  }
+
+  function scheduleSync(delay = 1500) {
+    if (!sync.code) return;
+    clearTimeout(sync.timer);
+    sync.timer = setTimeout(syncNow, delay);
+  }
+
+  async function syncNow() {
+    if (!sync.code) return;
+    if (sync.busy) { sync.again = true; return; }
+    clearTimeout(sync.timer);
+    if (!navigator.onLine) { setSyncStatus('offline'); return; }
+    sync.busy = true;
+    setSyncStatus('syncing');
+    try {
+      const res = await fetch('api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: sync.code, runs: state.runs, deleted: state.deleted }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw Object.assign(new Error('sync'), { reason: data.error || String(res.status) });
+      applyRemote(data);
+      sync.lastSync = Date.now();
+      saveSync();
+      setSyncStatus('ok');
+    } catch (e) {
+      const notThere = ['not_configured', '404', '405', '501'].includes(e.reason);
+      setSyncStatus(notThere ? 'server' : e.reason ? 'error' : navigator.onLine ? 'error' : 'offline');
+    } finally {
+      sync.busy = false;
+      if (sync.again) { sync.again = false; scheduleSync(300); }
+    }
+  }
+
+  // Merge the server's copy into this device's runs. Local edits made while the
+  // request was in flight are kept: they are newer.
+  function applyRemote(remote) {
+    const merged = window.StrideMerge.mergeDocs({ runs: state.runs, deleted: state.deleted }, remote);
+    const runs = merged.runs.map(normalizeRun).filter(Boolean);
+    const sig = (list) => list.map((r) => `${r.id}:${r.updatedAt}`).sort().join('|');
+    const changed = sig(runs) !== sig(state.runs);
+    state.runs = runs;
+    state.deleted = merged.deleted;
+    takeSnapshot();
+    persist();
+    if (changed) render();
+  }
+
+  function setSyncStatus(status) {
+    sync.status = sync.code ? status : 'off';
+    $('#sync-dot').dataset.state = sync.status;
+    $('#sync-btn').title = syncStatusText();
+    if ($('#sync-dialog').open) renderSyncDialog();
+  }
+
+  function syncStatusText() {
+    switch (sync.status) {
+      case 'off': return 'Sync is off';
+      case 'syncing': return 'Syncing…';
+      case 'ok': {
+        const ago = Date.now() - sync.lastSync;
+        return ago < 60000 ? 'Synced just now'
+          : `Synced at ${new Date(sync.lastSync).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+      }
+      case 'offline': return 'Offline. Your changes will sync when you are back online.';
+      case 'server': return 'Sync is not set up on the server yet. A Redis database needs to be connected to the Vercel project.';
+      case 'error': return 'Could not sync. Stride will try again shortly.';
+      default: return 'Not synced yet.';
+    }
+  }
+
+  function renderSyncDialog() {
+    const on = !!sync.code;
+    $('#sync-off').hidden = on;
+    $('#sync-on').hidden = !on;
+    if (on) {
+      $('#sync-code').textContent = formatCode(sync.code);
+      const st = $('#sync-status');
+      st.textContent = syncStatusText();
+      st.dataset.state = sync.status;
+    }
+  }
+
+  function openSyncDialog() {
+    $('#sync-join-error').hidden = true;
+    $('#sync-join').reset();
+    renderSyncDialog();
+    $('#sync-dialog').showModal();
+  }
+
+  async function connectSync(code, message) {
+    sync.code = code;
+    sync.lastSync = 0;
+    saveSync();
+    setSyncStatus('idle');
+    await syncNow();
+    if (sync.status === 'ok' && message) toast(message);
+  }
+
+  async function copyText(text, done) {
+    try { await navigator.clipboard.writeText(text); toast(done); }
+    catch { window.prompt('Copy this:', text); }
+  }
+
+  // A sync link (…/#sync=CODE) opened on another device.
+  function takeSyncLink() {
+    const m = location.hash.match(/^#sync=([A-Za-z0-9-]+)$/);
+    if (!m) return;
+    history.replaceState(null, '', location.pathname + location.search);
+    const code = cleanCode(m[1]);
+    if (!validCode(code)) { toast('That sync link is not valid.'); return; }
+    if (code === sync.code) { toast('This device is already synced.'); return; }
+    const ask = sync.code
+      ? 'Switch this device to the sync code from the link? Runs on this device will be merged into it.'
+      : 'Connect this device to sync with your other devices? Runs on this device will be merged with your synced runs.';
+    if (confirm(ask)) connectSync(code, 'Sync is on. Your runs are merged.');
+  }
+
+  function bindSync() {
+    $('#sync-btn').addEventListener('click', openSyncDialog);
+    $('#sync-close').addEventListener('click', () => $('#sync-dialog').close());
+    $('#sync-dialog').addEventListener('click', (e) => { if (e.target === $('#sync-dialog')) $('#sync-dialog').close(); });
+    $('#sync-start').addEventListener('click', () => connectSync(newCode(), ''));
+    $('#sync-join').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const code = cleanCode(e.target.elements.code.value);
+      const err = $('#sync-join-error');
+      if (!validCode(code)) { err.textContent = 'A sync code has 20 letters and numbers, like ABCDE-FGHJK-LMNPQ-RSTUV.'; err.hidden = false; return; }
+      err.hidden = true;
+      connectSync(code, 'Connected. Your runs are merged.');
+    });
+    $('#sync-copy').addEventListener('click', () => copyText(formatCode(sync.code), 'Sync code copied'));
+    $('#sync-share').addEventListener('click', async () => {
+      const url = syncLink();
+      if (navigator.share) {
+        try { await navigator.share({ title: 'Stride sync link', text: 'Open this on your other device to sync Stride:', url }); return; }
+        catch (e) { if (e && e.name === 'AbortError') return; }
+      }
+      copyText(url, 'Sync link copied');
+    });
+    $('#sync-now').addEventListener('click', syncNow);
+    $('#sync-stop').addEventListener('click', () => {
+      if (!confirm('Turn off sync on this device? Your runs stay on this device, and the synced copy stays online for your other devices.')) return;
+      sync.code = '';
+      sync.lastSync = 0;
+      saveSync();
+      setSyncStatus('off');
+      toast('Sync is off on this device');
+    });
+
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) syncNow(); });
+    window.addEventListener('online', syncNow);
+    window.addEventListener('offline', () => { if (sync.code) setSyncStatus('offline'); });
+    setInterval(() => { if (!document.hidden) syncNow(); }, 60000);
+  }
+
   // ---------- Toast ----------
   let toastTimer;
   function toast(msg, undo = null, actionLabel = 'Undo', action = undo) {
@@ -775,7 +993,10 @@
 
     let resizeTimer;
     window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderChart, 120); });
-    window.addEventListener('storage', (e) => { if (e.key === RUNS_KEY || e.key === SETTINGS_KEY) { load(); render(); } });
+    window.addEventListener('storage', (e) => {
+      if (e.key === RUNS_KEY || e.key === SETTINGS_KEY || e.key === DELETED_KEY) { load(); render(); scheduleSync(); }
+      if (e.key === SYNC_KEY) { sync.code = ''; loadSync(); setSyncStatus(sync.code ? sync.status : 'off'); }
+    });
   }
 
   // An image shared to Stride from another app (Android share sheet). The service
@@ -800,7 +1021,12 @@
   }
 
   load();
+  loadSync();
   bind();
+  bindSync();
   render();
+  setSyncStatus(sync.status);
   takeSharedImage();
+  takeSyncLink();
+  syncNow();
 })();

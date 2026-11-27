@@ -37,6 +37,7 @@ Most running apps want an account, a subscription or a GPS watch. Stride doesn't
 | 📊 **See your progress** | Weekly totals for distance, runs done, time on feet and average pace, plus a chart of the last 8 weeks. |
 | ⏭️ **Know what's next** | A "Coming up" list of your next planned runs. |
 | 📏 **km or miles** | Switch units at any time. |
+| 🔄 **Sync between devices** | Tap **Sync → Turn on sync** to get a private sync code, then open the sync link (or enter the code) on your other devices. Runs, edits and deletions show up everywhere within a minute. |
 | 💾 **Back up your data** | Export your runs to a file and import them on another device. |
 | 📄 **Ringkasan MCU** | A report page (`mcu.html`) summarising 29 runs at Mandiri Corporate University, Sep–Nov 2026, with charts, insights and a per-run table. One click imports those runs into the planner. |
 
@@ -74,13 +75,26 @@ To publish it for free, go to **Settings → Pages** in this repository, choose 
 
 ## About your data
 
-Stride saves your runs in your browser's `localStorage`, so:
+Without sync, Stride saves your runs only in your browser's `localStorage`, so:
 
 - your data stays on the device and browser you used;
 - clearing your browser data deletes it;
 - using **Export** every so often gives you a backup you can **Import** later.
 
+**With sync turned on**, your runs are also stored online (in the project's Upstash Redis database on Vercel) under a fingerprint of your sync code. There is no account: anyone who has your code can see and change your runs, so keep it to yourself. Turning sync off on a device keeps its runs on that device. Unit and view settings are not synced.
+
 Screenshots are read on your device. The text reader ([Tesseract.js](https://github.com/naptha/tesseract.js), about 7 MB) is downloaded from the jsDelivr CDN the first time you use it, but your image is never uploaded anywhere.
+
+## Setting up sync on Vercel
+
+Sync needs a small database, connected once to the Vercel project:
+
+1. In the Vercel dashboard, open the project and go to **Storage**.
+2. Choose **Create Database → Upstash for Redis** (from the Marketplace), pick the free plan and create it.
+3. Connect it to this project for **Production** (and Preview, if you use preview links). This adds `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` to the project.
+4. Redeploy. Until then, the Sync screen says sync is not set up on the server.
+
+The sync endpoint is `api/sync.js`, a Vercel Function with no dependencies. It merges what each device sends with the stored copy: the newest version of each run wins, and deletions are kept as markers so they reach every device.
 
 ## Project structure
 
@@ -89,6 +103,8 @@ index.html   page layout and the add/edit dialog
 styles.css   styling, light and dark themes
 app.js       planner, stats, chart, storage, import/export
 screenshot.js  reads a run from a screenshot (on-device text recognition)
+sync-merge.js  merge rules shared by the app and the sync function
+api/sync.js  Vercel Function that stores and merges synced runs (Upstash Redis)
 mcu.html     Ringkasan Lari MCU report page
 mcu.js       report data, charts, table and "Impor ke Stride"
 manifest.webmanifest, sw.js, icons/   installable app (home screen, offline)

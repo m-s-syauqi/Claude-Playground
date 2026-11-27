@@ -33,6 +33,7 @@
       <input type="file" id="import-input" accept="application/json,.json" hidden>
       <label class="btn btn-ghost" for="shot-input" title="Add a run from a screenshot of Strava or your watch app">From screenshot</label>
       <input type="file" id="shot-input" accept="image/*" hidden>
+      <button type="button" class="btn btn-ghost" id="sync-btn"><span class="sync-dot" id="sync-dot" data-state="off" aria-hidden="true"></span>Sync</button>
       <button type="button" class="btn btn-primary" id="add-btn">+ Add run</button>
     </div>
   </header>
@@ -153,8 +154,47 @@
     </form>
   </dialog>
 
+  <dialog id="sync-dialog" aria-labelledby="sync-title">
+    <div class="sync-body">
+      <div class="dialog-head">
+        <h2 id="sync-title">Sync between devices</h2>
+        <button type="button" class="btn btn-ghost icon-btn" id="sync-close" aria-label="Close">&times;</button>
+      </div>
+
+      <div id="sync-off">
+        <p>Keep the same runs on your phone, tablet and computer. Changes on one device show up on the others within a minute.</p>
+        <p class="muted">Your runs are stored online, linked to a private sync code instead of an account. Anyone with the code can see and change them.</p>
+        <button type="button" class="btn btn-primary" id="sync-start">Turn on sync</button>
+        <form class="sync-join" id="sync-join" novalidate>
+          <label class="field">
+            <span>Already using sync on another device? Enter its code</span>
+            <input name="code" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          </label>
+          <button type="submit" class="btn btn-ghost">Connect</button>
+        </form>
+        <p class="form-error" id="sync-join-error" role="alert" hidden></p>
+      </div>
+
+      <div id="sync-on" hidden>
+        <p class="sync-status" id="sync-status" role="status"></p>
+        <div class="field">
+          <span>Your sync code</span>
+          <code class="sync-code" id="sync-code"></code>
+        </div>
+        <p class="muted">On your other device, open the sync link, or tap <b>Sync</b> and enter this code. Keep it to yourself: anyone with it can see and change your runs.</p>
+        <div class="sync-actions">
+          <button type="button" class="btn btn-primary" id="sync-share">Share link</button>
+          <button type="button" class="btn btn-ghost" id="sync-copy">Copy code</button>
+          <button type="button" class="btn btn-ghost" id="sync-now">Sync now</button>
+        </div>
+        <button type="button" class="btn btn-danger" id="sync-stop">Turn off sync on this device</button>
+      </div>
+    </div>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
+  <script src="sync-merge.js"></script>
   <script src="screenshot.js"></script>
   <script src="app.js"></script>
   <script>

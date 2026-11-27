@@ -308,6 +308,7 @@
       actualKm: r.km,
       durationSec: r.sec,
       notes: [r.note, `HR ${r.hr} bpm`].filter(Boolean).join(' · '),
+      updatedAt: Date.now(), // so sync treats the import as the newest version
     }));
     const ids = new Set(incoming.map((r) => r.id));
     const already = existing.filter((r) => r && ids.has(r.id)).length;

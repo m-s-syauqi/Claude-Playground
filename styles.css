@@ -435,6 +435,29 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
 .dialog-actions { display: flex; align-items: center; gap: 8px; margin-top: 20px; }
 .spacer { flex: 1; }
 
+/* ---------- Sync ---------- */
+.sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--axis); flex: none; }
+.sync-dot[data-state="off"] { display: none; }
+.sync-dot[data-state="ok"] { background: var(--good-text); }
+.sync-dot[data-state="syncing"] { background: var(--accent); }
+.sync-dot[data-state="error"], .sync-dot[data-state="server"] { background: var(--danger); }
+#sync-dialog { width: min(480px, calc(100vw - 24px)); }
+.sync-body { padding: 20px; display: grid; gap: 12px; }
+.sync-body .dialog-head { margin-bottom: 0; }
+#sync-off, #sync-on { display: grid; gap: 12px; justify-items: start; }
+#sync-off[hidden], #sync-on[hidden] { display: none; }
+.sync-join { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; width: 100%; padding-top: 12px; border-top: 1px solid var(--border); }
+.sync-join .field { flex: 1 1 240px; }
+.sync-status { font-weight: 600; }
+.sync-status[data-state="ok"] { color: var(--good-text); }
+.sync-status[data-state="error"], .sync-status[data-state="server"] { color: var(--danger); }
+.sync-code {
+  display: block; font: 600 1.15rem/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.04em; color: var(--text); background: var(--surface-2);
+  padding: 10px 12px; border-radius: 8px; user-select: all; word-break: break-all;
+}
+.sync-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
 /* ---------- Toast ---------- */
 .toast {
   position: fixed;
