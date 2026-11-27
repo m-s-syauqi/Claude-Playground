@@ -1,30 +1,25 @@
-# Claude-Playground
+# Hi, I'm Syauqi 👋
 
-This is where I try Claude Code.
+I'm **Muhammad Syairozy Syauqi**, a Process Engineer at **PT. Krakatau Tirta Industri**, an indirect subsidiary of **PT. Krakatau Steel** through the sub-holding **PT. Krakatau Sarana Infrastruktur**. I'm currently a participant in **P3MDI**.
 
-## 👋 About Me
+## About me
 
-Hi, I'm **Muhammad Syairozy Syauqi** (you can call me **Syauqi**). I'm currently a participant in **P3MDI**.
+- 🔭 I'm currently working on **process engineering at PT. Krakatau Tirta Industri and the P3MDI program**
+- 🌱 I'm learning **life and vibe coding**
+- 🏃 Outside of work, I enjoy **running and gaming**
+- 💬 Ask me about **process engineering and Excel**
 
-## 🏭 Work
+## Projects
 
-I work at **PT. Krakatau Tirta Industri**, an indirect subsidiary of **PT. Krakatau Steel** through the sub-holding **PT. Krakatau Sarana Infrastruktur**.
+| Project | What it is |
+| --- | --- |
+| [Claude-Playground](https://github.com/m-s-syauqi/Claude-Playground) | Where I try Claude Code and experiment with vibe coding. |
 
-## 🌱 Currently Learning
+## Skills
 
-- Life
-- Vibe coding
+Process Engineering · Microsoft Excel
 
-## 🎯 Hobbies
+## Get in touch
 
-- 🏃 Running
-- 🎮 Gaming
-
-## 🛠️ Skills
-
-- Process Engineering
-- Microsoft Excel
-
-## 📫 Connect With Me
-
+- GitHub: [@m-s-syauqi](https://github.com/m-s-syauqi)
 - LinkedIn: [linkedin.com/in/msyairozys](https://www.linkedin.com/in/msyairozys/)
