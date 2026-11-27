@@ -4,7 +4,6 @@ I'm **Muhammad Syairozy Syauqi**, a Process Engineer at **PT. Krakatau Tirta Ind
 
 ## About me
 
-- 🔭 I'm currently working on **process engineering at PT. Krakatau Tirta Industri and the P3MDI program**
 - 🌱 I'm learning **life and vibe coding**
 - 🏃 Outside of work, I enjoy **running and gaming**
 - 💬 Ask me about **process engineering and Excel**
