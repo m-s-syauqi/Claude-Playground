@@ -4,6 +4,25 @@
   --font-sans: var(--font-geist-sans);
 }
 
+html {
+  background: #e2e8f0;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   color: #0f172a;
+}
+
+/* "Sembunyikan angka" */
+.hide-amt .amt {
+  filter: blur(7px);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-10px); }
+  40%, 80% { transform: translateX(10px); }
+}
+.shake {
+  animation: shake 0.4s ease;
 }

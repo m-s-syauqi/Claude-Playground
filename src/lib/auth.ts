@@ -9,14 +9,20 @@ import {
   verifySessionToken,
 } from "./session";
 
-export function checkPassword(input: string): boolean {
-  const expected = process.env.APP_PASSWORD;
-  if (!expected) {
-    throw new Error("APP_PASSWORD belum diatur.");
+export const PIN_LENGTH = 6;
+
+export function getConfiguredPin(): string {
+  const pin = process.env.APP_PIN ?? "";
+  if (!new RegExp(`^\\d{${PIN_LENGTH}}$`).test(pin)) {
+    throw new Error(`APP_PIN belum diatur atau bukan ${PIN_LENGTH} angka.`);
   }
+  return pin;
+}
+
+export function checkPin(input: string): boolean {
   // Hash both sides so lengths match and comparison is constant-time.
   const a = createHash("sha256").update(input).digest();
-  const b = createHash("sha256").update(expected).digest();
+  const b = createHash("sha256").update(getConfiguredPin()).digest();
   return timingSafeEqual(a, b);
 }
 

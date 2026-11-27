@@ -2,6 +2,7 @@ import "server-only";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { Redis } from "@upstash/redis";
+import type { Seed } from "./neraca";
 import type { Transaction } from "./types";
 
 // Production: Upstash Redis (Vercel Marketplace) stores each transaction in
@@ -13,6 +14,9 @@ interface Store {
   all(): Promise<Transaction[]>;
   put(tx: Transaction): Promise<void>;
   remove(id: string): Promise<void>;
+  getValue<T>(key: string): Promise<T | null>;
+  setValue(key: string, value: unknown, ttlSeconds?: number): Promise<void>;
+  deleteValue(key: string): Promise<void>;
 }
 
 function redisStore(url: string, token: string): Store {
@@ -28,11 +32,24 @@ function redisStore(url: string, token: string): Store {
     async remove(id) {
       await redis.hdel(HASH_KEY, id);
     },
+    async getValue<T>(key: string) {
+      return (await redis.get<T>(key)) ?? null;
+    },
+    async setValue(key, value, ttlSeconds) {
+      if (ttlSeconds) await redis.set(key, value, { ex: ttlSeconds });
+      else await redis.set(key, value);
+    },
+    async deleteValue(key) {
+      await redis.del(key);
+    },
   };
 }
 
 function fileStore(): Store {
-  const file = path.join(process.cwd(), ".data", "transactions.json");
+  const dir = path.join(process.cwd(), ".data");
+  const file = path.join(dir, "transactions.json");
+  const valueFile = (key: string) =>
+    path.join(dir, `${key.replace(/[^a-z0-9-]/gi, "_")}.json`);
   async function read(): Promise<Record<string, Transaction>> {
     try {
       return JSON.parse(await fs.readFile(file, "utf8"));
@@ -57,6 +74,25 @@ function fileStore(): Store {
       const data = await read();
       delete data[id];
       await write(data);
+    },
+    async getValue<T>(key: string) {
+      try {
+        const { value, expiresAt } = JSON.parse(
+          await fs.readFile(valueFile(key), "utf8"),
+        );
+        if (expiresAt && expiresAt < Date.now()) return null;
+        return value as T;
+      } catch {
+        return null;
+      }
+    },
+    async setValue(key, value, ttlSeconds) {
+      await fs.mkdir(dir, { recursive: true });
+      const expiresAt = ttlSeconds ? Date.now() + ttlSeconds * 1000 : 0;
+      await fs.writeFile(valueFile(key), JSON.stringify({ value, expiresAt }));
+    },
+    async deleteValue(key) {
+      await fs.rm(valueFile(key), { force: true });
     },
   };
 }
@@ -93,4 +129,40 @@ export async function saveTransaction(tx: Transaction) {
 
 export async function deleteTransaction(id: string) {
   await getStore().remove(id);
+}
+
+// Neraca Pribadi data, imported from the artifact's data.js.
+const SEED_KEY = "mywallet:neraca";
+
+export async function getSeed(): Promise<Seed | null> {
+  return getStore().getValue<Seed>(SEED_KEY);
+}
+
+export async function saveSeed(seed: Seed) {
+  await getStore().setValue(SEED_KEY, seed);
+}
+
+export async function deleteSeed() {
+  await getStore().deleteValue(SEED_KEY);
+}
+
+// Failed PIN attempts, for the lockout.
+const PIN_FAIL_KEY = "mywallet:pin-fail";
+export type PinFail = { count: number; lockedUntil: number };
+
+export async function getPinFail(): Promise<PinFail> {
+  return (
+    (await getStore().getValue<PinFail>(PIN_FAIL_KEY)) ?? {
+      count: 0,
+      lockedUntil: 0,
+    }
+  );
+}
+
+export async function setPinFail(value: PinFail, ttlSeconds: number) {
+  await getStore().setValue(PIN_FAIL_KEY, value, ttlSeconds);
+}
+
+export async function clearPinFail() {
+  await getStore().deleteValue(PIN_FAIL_KEY);
 }

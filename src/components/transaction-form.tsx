@@ -5,14 +5,20 @@ import { addTransaction, type FormState } from "@/app/actions";
 import { CATEGORIES, type TxType } from "@/lib/types";
 
 const input =
-  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
+  "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20";
 
 function groupDigits(value: string): string {
   const digits = value.replace(/\D/g, "").replace(/^0+/, "");
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
-export function TransactionForm({ defaultDate }: { defaultDate: string }) {
+export function TransactionForm({
+  defaultDate,
+  onSaved,
+}: {
+  defaultDate: string;
+  onSaved?: () => void;
+}) {
   const [type, setType] = useState<TxType>("expense");
   const [amount, setAmount] = useState("");
   const noteRef = useRef<HTMLInputElement>(null);
@@ -23,6 +29,7 @@ export function TransactionForm({ defaultDate }: { defaultDate: string }) {
         // Keep type, category and date for quick repeated entries.
         setAmount("");
         if (noteRef.current) noteRef.current.value = "";
+        onSaved?.();
       }
       return result;
     },
@@ -39,7 +46,7 @@ export function TransactionForm({ defaultDate }: { defaultDate: string }) {
       }}
       className="space-y-3"
     >
-      <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
         {(["expense", "income"] as const).map((t) => (
           <label
             key={t}
@@ -143,7 +150,7 @@ export function TransactionForm({ defaultDate }: { defaultDate: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-lg bg-emerald-600 py-2.5 font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+        className="w-full rounded-full bg-emerald-600 py-3 font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
       >
         {pending ? "Menyimpan…" : "Simpan"}
       </button>
