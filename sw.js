@@ -1,5 +1,5 @@
 // Network first, jadi versi baru langsung terpakai; cache hanya dipakai saat offline.
-const CACHE = 'gerak-v1';
+const CACHE = 'gerak-v2';
 const ASSETS = ['./', 'index.html', 'styles.css', 'app.js', 'manifest.webmanifest', 'icons/favicon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -16,7 +16,8 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
   e.respondWith(
     fetch(req)
       .then((res) => {

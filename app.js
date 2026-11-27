@@ -107,18 +107,21 @@
       notified: {},
     };
   }
-  function load() {
+  function hydrate(raw) {
     const base = defaultState();
+    return { ...base, ...raw, settings: { ...base.settings, ...raw.settings }, pet: { ...base.pet, ...raw.pet }, streak: { ...base.streak, ...raw.streak } };
+  }
+  function load() {
     try {
       const raw = JSON.parse(localStorage.getItem(STORE_KEY));
-      if (raw && raw.version === 1) {
-        return { ...base, ...raw, settings: { ...base.settings, ...raw.settings }, pet: { ...base.pet, ...raw.pet }, streak: { ...base.streak, ...raw.streak } };
-      }
+      if (raw && raw.version === 1) return hydrate(raw);
     } catch (e) { /* data rusak: mulai baru */ }
-    return base;
+    return defaultState();
   }
   let state = load();
   const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { toast('Gagal menyimpan data di perangkat ini.', 'bad'); } };
+  // Perubahan dari tindakan pengguna: simpan lalu kirim ke cloud jika sinkron aktif.
+  const commit = () => { save(); markDirty(); };
 
   const isAwake = (h) => h >= state.settings.startHour && h < state.settings.endHour;
   const activeHours = () => { const a = []; for (let h = state.settings.startHour; h < state.settings.endHour; h++) a.push(h); return a; };
@@ -189,7 +192,7 @@
       const c = { sesuai: 0, sebagian: 0, meleset: 0, terlewat: 0 };
       hours.forEach((h) => { const r = state.reviews[d]?.[h]; c[r ? r.status : 'terlewat']++; });
       const rec = dayRec(d);
-      rec.finalized = true; rec.counts = c;
+      rec.finalized = true; rec.counts = c; rec.finalBonus = 0;
       if (c.terlewat && stageOf(state.xp) > 0) {
         const pen = Math.min(c.terlewat * 4, 30);
         state.pet.senang = clamp(state.pet.senang - pen);
@@ -202,14 +205,14 @@
         state.streak.lastDay = d;
         state.streak.best = Math.max(state.streak.best, state.streak.current);
         const bonus = 5 * Math.min(state.streak.current, 10);
-        state.coins += bonus; rec.coins += bonus;
+        state.coins += bonus; rec.coins += bonus; rec.finalBonus += bonus;
         addLog(`Streak ${state.streak.current} hari! Bonus +${bonus} koin.`, '🔥');
         toast(`🔥 Streak ${state.streak.current} hari · +${bonus} koin`, 'good');
       } else {
         state.streak.current = 0;
       }
       if (planned >= 4 && c.sesuai === planned) {
-        state.coins += 30; rec.coins += 30;
+        state.coins += 30; rec.coins += 30; rec.finalBonus += 30;
         addLog(`Hari sempurna (${fmtShort(d)}): semua jam sesuai. Bonus +30 koin.`, '🏆');
         toast('🏆 Hari sempurna kemarin · +30 koin', 'good');
       }
@@ -284,7 +287,7 @@
     if (coins) parts.push(`+${coins} koin`);
     addLog(`${slotLabel(hour)} “${plan.title}”: ${b.label}${parts.length ? ' (' + parts.join(', ') + ')' : ''}.`, status === 'sesuai' ? '✅' : status === 'sebagian' ? '🟡' : '❌');
     announceGrowth(before);
-    save();
+    commit();
     render();
     const msg = status === 'meleset' ? `Tercatat. Tidak apa-apa, jam berikutnya pasti bisa!${onTime ? ` (+${coins} koin karena jujur tepat waktu)` : ''}`
       : `${b.label}! ${parts.join(' · ')}${combo > 1 ? ` · Combo ×${combo}` : ''}`;
@@ -668,7 +671,7 @@
     if (title) p[h] = { title, skill: skill || '' };
     else delete p[h];
     if (!Object.keys(p).length) delete state.plans[planDate];
-    save();
+    commit();
   }
   function planEditable() { return planDate > dkey(now()); }
   $('#plan-list').addEventListener('input', (e) => {
@@ -704,11 +707,11 @@
     const src = state.plans[dkey(now())]; if (!src) return;
     if (state.plans[planDate] && !confirm(`Timpa rencana ${fmtShort(planDate)} dengan agenda hari ini?`)) return;
     state.plans[planDate] = JSON.parse(JSON.stringify(src));
-    save(); renderPlan(); toast('Agenda hari ini disalin.');
+    commit(); renderPlan(); toast('Agenda hari ini disalin.');
   });
   $('#plan-clear').addEventListener('click', () => {
     if (!state.plans[planDate] || !confirm(`Kosongkan rencana ${fmtShort(planDate)}?`)) return;
-    delete state.plans[planDate]; save(); renderPlan();
+    delete state.plans[planDate]; commit(); renderPlan();
   });
 
   // ---------- render: skill ----------
@@ -768,12 +771,12 @@
       state.skills.push({ id, name, icon: pickedIcon, xp: 0 });
       addLog(`Skill baru: ${name}.`, pickedIcon);
     }
-    save(); render();
+    commit(); render();
   });
   $('#skill-delete').addEventListener('click', () => {
     if (!editingSkill || !confirm(`Hapus skill “${editingSkill.name}”? XP skill ini ikut hilang.`)) return;
     state.skills = state.skills.filter((s) => s !== editingSkill);
-    save(); $('#skill-dialog').close('cancel'); render();
+    commit(); $('#skill-dialog').close('cancel'); render();
   });
   $('#add-skill').addEventListener('click', () => openSkill(null));
   $('#skill-grid').addEventListener('click', (e) => { const b = e.target.closest('[data-edit-skill]'); if (b) openSkill(b.dataset.editSkill); });
@@ -807,7 +810,7 @@
     if (wear) {
       const id = wear.dataset.wear;
       p.worn = p.worn.includes(id) ? p.worn.filter((x) => x !== id) : [...p.worn, id];
-      save(); renderPet(); renderToday(); return;
+      commit(); renderPet(); renderToday(); return;
     }
     if (!buy) return;
     const it = SHOP.find((x) => x.id === buy.dataset.buy);
@@ -821,7 +824,7 @@
       toast(`${it.icon} ${it.kind === 'food' ? 'Nyam!' : 'Seru!'} ${p.name} ${it.kind === 'food' ? 'makan' : 'bermain'}.`, 'good');
     }
     addLog(`Membeli ${it.name} (−${it.price} koin).`, it.icon);
-    save(); render(); floatText(it.icon); petReact(it.kind === 'food' ? 'eat' : 'jump');
+    commit(); render(); floatText(it.icon); petReact(it.kind === 'food' ? 'eat' : 'jump');
   });
 
   // ---------- render: riwayat ----------
@@ -946,6 +949,290 @@
     save();
   }
 
+  // ---------- sinkron cloud (Upstash Redis via /api/sync) ----------
+  const SYNC_KEY = 'gerak-sync';
+  const BASE_KEY = 'gerak-sync-base';
+  // Hanya di versi online, dan tidak saat jam digeser dengan ?now= (supaya data asli tidak tercampur).
+  const syncAvailable = location.protocol.startsWith('http') && !timeOffset;
+  const newId = (n, alpha = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') => {
+    const b = new Uint8Array(n); crypto.getRandomValues(b);
+    return [...b].map((x) => alpha[x % alpha.length]).join('');
+  };
+  function loadSync() {
+    try { const s = JSON.parse(localStorage.getItem(SYNC_KEY)); if (s && s.code) return s; } catch (e) { /* abaikan */ }
+    return { code: null, device: newId(12), rev: 0, seq: 0, sentSeq: 0, pushedSeq: 0, lastSync: null, lastError: null };
+  }
+  let sync = loadSync();
+  let syncStatus = 'idle';
+  let syncBusy = false;
+  let pushTimer = null;
+  const saveSync = () => { if (sync.code) localStorage.setItem(SYNC_KEY, JSON.stringify(sync)); else localStorage.removeItem(SYNC_KEY); };
+  const setBase = (data) => { try { localStorage.setItem(BASE_KEY, JSON.stringify(data)); } catch (e) { /* abaikan */ } };
+  const getBase = () => { try { return JSON.parse(localStorage.getItem(BASE_KEY)); } catch (e) { return null; } };
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+
+  function markDirty() {
+    if (!sync.code) return;
+    sync.seq++; saveSync();
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => syncNow(), 1500);
+    renderSyncBadge();
+  }
+
+  async function syncApi(method, body) {
+    const res = await fetch('/api/sync', {
+      method, cache: 'no-store',
+      headers: { 'X-Gerak-Code': sync.code, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const json = await res.json().catch(() => ({}));
+    return { status: res.status, json };
+  }
+  const syncError = (r) => {
+    const msg = { 401: 'Kode sinkron tidak valid.', 413: 'Data terlalu besar untuk disinkron.', 429: 'Terlalu sering, coba lagi sebentar.', 503: 'Database belum terhubung ke project Vercel.' }[r.status];
+    return new Error(msg || `Server menjawab ${r.status}${r.json?.error ? ' (' + r.json.error + ')' : ''}.`);
+  };
+
+  // Gabungan 3 arah: B = data terakhir yang sama-sama diketahui, L = perangkat ini, R = cloud.
+  function mergeStates(B, L, R) {
+    B = B || R;
+    const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+    const pickChanged = (b, l, r) => (same(l, b) ? r : l);
+    const delta = (b, l, r) => (r || 0) + ((l || 0) - (b || 0));
+    const keys = (...objs) => [...new Set(objs.flatMap((o) => Object.keys(o || {})))];
+    const out = clone(R);
+
+    out.plans = {};
+    for (const d of keys(B.plans, L.plans, R.plans)) {
+      const day = {};
+      for (const h of keys(B.plans?.[d], L.plans?.[d], R.plans?.[d])) {
+        const v = pickChanged(B.plans?.[d]?.[h], L.plans?.[d]?.[h], R.plans?.[d]?.[h]);
+        if (v) day[h] = v;
+      }
+      if (Object.keys(day).length) out.plans[d] = day;
+    }
+
+    // Review: gabungkan; jam yang direview di dua perangkat sekaligus memakai versi cloud.
+    out.reviews = clone(L.reviews || {});
+    let dupXp = 0; let dupCoins = 0; const dupSkill = {};
+    for (const [d, day] of Object.entries(R.reviews || {})) {
+      for (const [h, r] of Object.entries(day)) {
+        const l = L.reviews?.[d]?.[h];
+        if (l && !B.reviews?.[d]?.[h] && !same(l, r)) {
+          dupXp += l.xp || 0; dupCoins += l.coins || 0;
+          if (l.skill) dupSkill[l.skill] = (dupSkill[l.skill] || 0) + (l.xp || 0);
+        }
+        (out.reviews[d] ||= {})[h] = r;
+      }
+    }
+
+    out.days = {};
+    for (const d of keys(L.days, R.days)) {
+      const b = B.days?.[d] || {}; const l = L.days?.[d] || {}; const r = R.days?.[d] || {};
+      const m = { ...l, ...r };
+      m.coins = delta(b.coins, l.coins, r.coins); m.xp = delta(b.xp, l.xp, r.xp);
+      if (l.finalized && r.finalized && !b.finalized) { m.coins -= l.finalBonus || 0; dupCoins += l.finalBonus || 0; }
+      if (l.planBonus && r.planBonus && !b.planBonus) { m.coins -= 10; dupCoins += 10; }
+      m.finalized = !!(l.finalized || r.finalized); m.planBonus = !!(l.planBonus || r.planBonus);
+      out.days[d] = m;
+    }
+    out.coins = Math.max(0, delta(B.coins, L.coins, R.coins) - dupCoins);
+    out.xp = Math.max(0, delta(B.xp, L.xp, R.xp) - dupXp);
+
+    const bs = Object.fromEntries((B.skills || []).map((s) => [s.id, s]));
+    const ls = Object.fromEntries((L.skills || []).map((s) => [s.id, s]));
+    const rs = Object.fromEntries((R.skills || []).map((s) => [s.id, s]));
+    out.skills = [];
+    for (const id of [...new Set([...(R.skills || []).map((s) => s.id), ...(L.skills || []).map((s) => s.id)])]) {
+      const b = bs[id]; const l = ls[id]; const r = rs[id];
+      if (b && (!l || !r)) continue; // dihapus di salah satu perangkat
+      const m = { ...(r || l) };
+      if (l && r) { m.name = pickChanged(b?.name, l.name, r.name); m.icon = pickChanged(b?.icon, l.icon, r.icon); }
+      m.xp = Math.max(0, delta(b?.xp, l?.xp, r?.xp) - (dupSkill[id] || 0));
+      out.skills.push(m);
+    }
+
+    const bp = B.pet || {}; const lp = L.pet || {}; const rp = R.pet || {};
+    const p = { ...rp };
+    p.name = pickChanged(bp.name, lp.name, rp.name); p.color = pickChanged(bp.color, lp.color, rp.color);
+    for (const k of ['kenyang', 'senang']) p[k] = clamp((rp[k] ?? 0) + Math.max(0, (lp[k] ?? 0) - (bp[k] ?? lp[k] ?? 0)));
+    p.sick = bp.sick && !lp.sick ? false : !!rp.sick;
+    p.owned = [...new Set([...(rp.owned || []), ...(lp.owned || [])])];
+    p.worn = (pickChanged(bp.worn, lp.worn, rp.worn) || []).filter((x) => p.owned.includes(x));
+    const earliest = (a, b) => (!a ? b : !b ? a : a < b ? a : b);
+    p.hatchedAt = earliest(lp.hatchedAt, rp.hatchedAt); p.born = earliest(lp.born, rp.born);
+    p.lastTick = (lp.lastTick || '') > (rp.lastTick || '') ? lp.lastTick : rp.lastTick;
+    out.pet = p;
+
+    out.settings = { ...R.settings };
+    for (const k of keys(L.settings, R.settings)) out.settings[k] = pickChanged(B.settings?.[k], L.settings?.[k], R.settings?.[k]);
+    const ls2 = L.streak || {}; const rs2 = R.streak || {};
+    out.streak = ((ls2.lastDay || '') > (rs2.lastDay || '') || (ls2.lastDay === rs2.lastDay && ls2.current > rs2.current)) ? { ...ls2 } : { ...rs2 };
+    out.streak.best = Math.max(ls2.best || 0, rs2.best || 0);
+    const seen = new Set();
+    out.log = [...(L.log || []), ...(R.log || [])]
+      .filter((x) => { const k = x.at + x.text; if (seen.has(k)) return false; seen.add(k); return true; })
+      .sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, 80);
+    out.notified = { ...(L.notified || {}), ...(R.notified || {}) };
+    out.onboarded = !!(L.onboarded || R.onboarded);
+    out.createdAt = earliest(L.createdAt, R.createdAt);
+    return out;
+  }
+
+  function adoptRemote(remote, quiet) {
+    state = hydrate(remote.data); save();
+    sync.rev = remote.rev; sync.pushedSeq = sync.seq; setBase(remote.data);
+    tickPet(now()); finalizeDays(now()); save();
+    scrolledToNow = false;
+    render();
+    if (!quiet) toast('☁ Data diperbarui dari perangkat lain.');
+  }
+
+  async function pushLocal() {
+    const sentSeq = sync.seq; const snapshot = clone(state);
+    sync.sentSeq = sentSeq; saveSync();
+    const r = await syncApi('PUT', { baseRev: sync.rev, data: snapshot, device: sync.device, seq: sentSeq });
+    if (r.status === 200) { sync.rev = r.json.rev; sync.pushedSeq = sentSeq; setBase(snapshot); return true; }
+    if (r.status !== 409) throw syncError(r);
+    const remote = r.json;
+    if (remote.device === sync.device && remote.seq === sentSeq) {
+      // Kiriman kita sebelumnya ternyata sudah sampai.
+      sync.rev = remote.rev; sync.pushedSeq = sentSeq; setBase(remote.data); return true;
+    }
+    if (!remote.data) { sync.rev = remote.rev; return false; }
+    const before = snapshot.coins;
+    state = hydrate(mergeStates(getBase(), state, remote.data)); save();
+    sync.rev = remote.rev; setBase(remote.data); sync.seq++;
+    render();
+    toast(`☁ Perubahan dari perangkat lain digabungkan${state.coins !== before ? ` (koin ${before} → ${state.coins})` : ''}.`);
+    return false;
+  }
+
+  async function syncNow() {
+    if (!sync.code || !syncAvailable || syncBusy) return;
+    if (!navigator.onLine) { syncStatus = 'offline'; renderSyncBadge(); return; }
+    syncBusy = true; syncStatus = 'syncing'; renderSyncBadge();
+    try {
+      for (let i = 0; i < 3 && sync.seq > sync.pushedSeq; i++) await pushLocal();
+      if (sync.seq <= sync.pushedSeq) {
+        const r = await syncApi('GET');
+        if (r.status !== 200) throw syncError(r);
+        if (r.json.rev > sync.rev && r.json.data) adoptRemote(r.json);
+        else if (r.json.rev === 0 && sync.rev > 0) { sync.rev = 0; sync.seq++; }
+      }
+      sync.lastSync = new Date().toISOString(); sync.lastError = null; syncStatus = 'idle';
+    } catch (e) {
+      sync.lastError = e.message || 'Gagal terhubung.'; syncStatus = 'error';
+    } finally {
+      syncBusy = false; saveSync(); renderSyncBadge(); renderSyncBox();
+      if (sync.seq > sync.pushedSeq && !sync.lastError) { clearTimeout(pushTimer); pushTimer = setTimeout(() => syncNow(), 1500); }
+    }
+  }
+
+  function normCode(c) { return String(c || '').toUpperCase().replace(/[^A-Z0-9-]/g, ''); }
+  async function linkWithCode(code, { fromOnboarding } = {}) {
+    code = normCode(code);
+    if (code.length < 16) { toast('Kode sinkron terlalu pendek (min. 16 karakter).', 'bad'); return false; }
+    const prev = sync;
+    sync = { ...loadSync(), code, device: prev.device || newId(12) };
+    try {
+      const r = await syncApi('GET');
+      if (r.status !== 200) throw syncError(r);
+      if (r.json.data) {
+        const d = r.json.data;
+        const reviews = Object.values(d.reviews || {}).reduce((n, x) => n + Object.keys(x).length, 0);
+        const summary = `${d.pet?.name || 'Peliharaan'} · ${d.xp || 0} XP · ${d.coins || 0} koin · ${reviews} jam direview`;
+        const hasLocal = state.onboarded && (state.xp > 0 || Object.keys(state.plans).length);
+        if (!fromOnboarding && hasLocal && !confirm(`Data di cloud: ${summary}.\n\nPakai data cloud? Data di perangkat ini akan diganti.`)) { sync = prev; return false; }
+        saveSync(); adoptRemote(r.json, true);
+        toast(`☁ Terhubung. Data dimuat: ${summary}.`, 'good');
+      } else {
+        if (fromOnboarding) { sync = prev; toast('Belum ada data untuk kode ini. Periksa lagi kodenya.', 'bad'); return false; }
+        if (!confirm('Belum ada data untuk kode ini. Mulai sinkron memakai data di perangkat ini?')) { sync = prev; return false; }
+        sync.seq = 1; sync.pushedSeq = 0; saveSync();
+        await syncNow();
+        toast('☁ Sinkron aktif. Masukkan kode yang sama di perangkat lain.', 'good');
+      }
+      sync.lastSync = new Date().toISOString(); saveSync(); renderSyncBadge(); renderSyncBox();
+      return true;
+    } catch (e) {
+      sync = prev; toast(e.message || 'Gagal terhubung ke server.', 'bad'); return false;
+    }
+  }
+  async function createCode() {
+    const code = `GRK-${newId(5)}-${newId(5)}-${newId(5)}-${newId(5)}`;
+    sync = { ...loadSync(), code, device: sync.device, seq: 1, pushedSeq: 0, rev: 0 };
+    saveSync(); renderSyncBox();
+    await syncNow();
+    if (sync.lastError) toast(`Kode dibuat, tapi belum tersinkron: ${sync.lastError}`, 'bad');
+    else toast('☁ Sinkron aktif. Simpan kodenya dan masukkan di perangkat lain.', 'good');
+    renderSyncBox();
+  }
+  function unlink() {
+    if (!confirm('Putuskan sinkron di perangkat ini? Data tetap ada di perangkat ini dan di cloud.')) return;
+    sync = { ...loadSync(), code: null, device: sync.device }; saveSync(); localStorage.removeItem(BASE_KEY);
+    syncStatus = 'idle'; renderSyncBadge(); renderSyncBox();
+  }
+
+  function agoText(iso) {
+    if (!iso) return 'belum pernah';
+    const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    return m < 1 ? 'baru saja' : m < 60 ? `${m} menit lalu` : m < 1440 ? `${Math.round(m / 60)} jam lalu` : `${Math.round(m / 1440)} hari lalu`;
+  }
+  function syncState() {
+    if (!sync.code) return 'off';
+    if (!syncAvailable) return 'paused';
+    if (syncStatus === 'syncing') return 'syncing';
+    if (!navigator.onLine) return 'offline';
+    if (sync.lastError) return 'error';
+    return sync.seq > sync.pushedSeq ? 'pending' : 'ok';
+  }
+  const SYNC_TEXT = { ok: 'Tersinkron', syncing: 'Menyinkron…', pending: 'Menunggu kirim', offline: 'Offline, disimpan di perangkat', error: 'Gagal sinkron', paused: 'Sinkron dijeda' };
+  function renderSyncBadge() {
+    const b = $('#sync-badge'); if (!b) return;
+    const st = syncState();
+    b.hidden = st === 'off';
+    b.dataset.state = st;
+    b.querySelector('b').textContent = { ok: '✓', syncing: '…', pending: '•', offline: '✕', error: '!', paused: '⏸', off: '' }[st];
+    b.title = `${SYNC_TEXT[st] || ''}${sync.lastSync ? ' · ' + agoText(sync.lastSync) : ''}`;
+    b.setAttribute('aria-label', `Sinkron: ${b.title}`);
+  }
+  function renderSyncBox() {
+    const box = $('#sync-box'); if (!box || !$('#settings-dialog').open) return;
+    if (!syncAvailable) {
+      box.innerHTML = `<span>Sinkron antar perangkat</span><span class="muted small">${timeOffset ? 'Dijeda karena jam aplikasi digeser dengan ?now=.' : 'Hanya tersedia di versi online (Vercel).'}${sync.code ? ' Kode tetap tersimpan.' : ''}</span>`;
+      return;
+    }
+    if (!sync.code) {
+      box.innerHTML = `<span>Sinkron antar perangkat</span>
+        <span class="muted small">Simpan data di cloud dan pakai Gerak di HP dan laptop sekaligus. Dikunci dengan kode rahasia, jadi siapa pun yang memegang kode bisa membuka datamu.</span>
+        <div class="btn-row"><button type="button" class="btn btn-primary" data-sync="create">Buat kode sinkron</button></div>
+        <div class="code-row"><input id="sync-code-input" placeholder="Punya kode? GRK-XXXXX-…" autocomplete="off" autocapitalize="characters" spellcheck="false"><button type="button" class="btn btn-ghost" data-sync="link">Hubungkan</button></div>`;
+      return;
+    }
+    const st = syncState();
+    box.innerHTML = `<span>Sinkron antar perangkat</span>
+      <span class="sync-line" data-state="${st}"><i></i>${SYNC_TEXT[st]} · terakhir ${agoText(sync.lastSync)}</span>
+      ${sync.lastError ? `<span class="small warn-line">${esc(sync.lastError)}</span>` : ''}
+      <details class="code-reveal"><summary>Tampilkan kode sinkron</summary>
+        <div class="code-row"><code id="sync-code">${esc(sync.code)}</code><button type="button" class="btn btn-ghost btn-sm" data-sync="copy">Salin</button></div>
+        <span class="muted small">Masukkan kode ini di perangkat lain (Pengaturan → Sinkron, atau saat pertama membuka Gerak). Jangan bagikan ke orang lain.</span>
+      </details>
+      <div class="btn-row"><button type="button" class="btn btn-ghost" data-sync="now">Sinkron sekarang</button><button type="button" class="btn btn-danger" data-sync="unlink">Putuskan</button></div>`;
+  }
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-sync]'); if (!b) return;
+    const act = b.dataset.sync;
+    if (act === 'create') { b.disabled = true; await createCode(); }
+    if (act === 'link') { b.disabled = true; const ok = await linkWithCode($('#sync-code-input').value); b.disabled = false; if (ok) $('#settings-dialog').close('cancel'); }
+    if (act === 'now') { await syncNow(); renderSyncBox(); }
+    if (act === 'unlink') unlink();
+    if (act === 'copy') { try { await navigator.clipboard.writeText(sync.code); toast('Kode disalin.'); } catch (err) { toast('Salin manual: pilih teks kodenya.'); } }
+  });
+  $('#sync-badge').addEventListener('click', () => { $('#settings-btn').click(); });
+  window.addEventListener('online', () => syncNow());
+  window.addEventListener('offline', () => renderSyncBadge());
+
   // ---------- settings & onboarding ----------
   const hourOpts = (sel, from, to) => { let s = ''; for (let h = from; h <= to; h++) s += `<option value="${h}"${h === sel ? ' selected' : ''}>${fmtHour(h)}</option>`; return s; };
   function colorPick(el, sel) {
@@ -967,6 +1254,7 @@
     updateNotifyState();
     $('#settings-dialog').returnValue = '';
     $('#settings-dialog').showModal();
+    renderSyncBox();
   });
   $('#set-notify').addEventListener('click', async () => {
     if (!('Notification' in window)) return;
@@ -979,7 +1267,7 @@
     state.pet.name = $('#set-petname').value.trim() || state.pet.name;
     const col = $('#settings-form').querySelector('input[name="set-color"]:checked'); if (col) state.pet.color = col.value;
     state.settings.startHour = Number($('#set-start').value); state.settings.endHour = Number($('#set-end').value);
-    save(); render();
+    commit(); render();
   });
   $('#export-btn').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
@@ -993,7 +1281,7 @@
       if (data?.version !== 1 || !data.pet || !data.plans) throw new Error('format');
       if (!confirm('Ganti semua data di perangkat ini dengan file ini?')) return;
       localStorage.setItem(STORE_KEY, JSON.stringify(data));
-      state = load(); save(); $('#settings-dialog').close('cancel'); render(); toast('Data berhasil diimpor.', 'good');
+      state = load(); commit(); $('#settings-dialog').close('cancel'); render(); toast('Data berhasil diimpor.', 'good');
     } catch (err) { toast('File tidak valid.', 'bad'); }
     e.target.value = '';
   });
@@ -1010,13 +1298,26 @@
     $('#ob-color').addEventListener('change', (e) => { $('#onboard-egg').innerHTML = petSVG(0, 'telur', e.target.value, [], 0); });
     const dlg = $('#onboard-dialog');
     dlg.addEventListener('cancel', (e) => e.preventDefault());
+    const obLink = $('#ob-link');
+    if (!syncAvailable) $('#ob-sync').hidden = true;
+    obLink.addEventListener('click', async () => {
+      obLink.disabled = true;
+      const ok = await linkWithCode($('#ob-code').value, { fromOnboarding: true });
+      obLink.disabled = false;
+      if (ok) dlg.close('linked');
+    });
     dlg.addEventListener('close', () => {
+      if (dlg.returnValue === 'linked') {
+        if (!state.onboarded) { state.onboarded = true; commit(); }
+        render(); showTab(state.plans[dkey(now())] ? 'today' : 'plan');
+        return;
+      }
       state.pet.name = $('#ob-name').value.trim() || 'Gerak';
       const col = $('#onboard-form').querySelector('input[name="ob-color"]:checked'); if (col) state.pet.color = col.value;
       state.settings.startHour = Number($('#ob-start').value); state.settings.endHour = Number($('#ob-end').value);
       state.onboarded = true;
       addLog(`${state.pet.name} lahir sebagai telur. Selamat datang di Gerak!`, '🥚');
-      save(); render(); showTab('plan');
+      commit(); render(); showTab('plan');
       toast('Mulai dengan menyusun agenda besok, jam per jam.', 'good');
     });
     dlg.showModal();
@@ -1027,5 +1328,11 @@
   render();
   if (!state.onboarded) onboard();
   setInterval(() => { tick(); render(); }, 30 * 1000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { tick(); render(); } });
+  setInterval(() => { if (!document.hidden) syncNow(); }, 60 * 1000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) { tick(); render(); syncNow(); }
+    else if (sync.seq > sync.pushedSeq) syncNow(); // kirim perubahan sebelum aplikasi ditinggal
+  });
+  renderSyncBadge();
+  syncNow();
 })();
