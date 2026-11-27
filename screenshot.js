@@ -70,8 +70,9 @@
     if (dt) Object.assign(out, dt);
     else { out.date = isoOf(new Date(ref)); out.guessedDate = true; }
 
-    // Pace: "6:45 /km", "6'45\"/km", sometimes misread as "6:45 [km". Remove it so it isn't taken for a duration.
-    const paceRe = /(?<![\d:])(\d{1,2})[:'](\d{2})"?\s*[/[|\\l]?\s*(km|mi)\b/i;
+    // Pace: "6:45 /km", "6'45\"/km". OCR sometimes misreads the slash ("6:45 [km", "5:47 fkm"),
+    // so allow any one character there. Remove it so it isn't taken for a duration.
+    const paceRe = /(?<![\d:])(\d{1,2})[:'](\d{2})"?\s*[^\s\d]?\s*(km|mi)\b/i;
     let m = t.match(paceRe);
     if (m) {
       const sec = Number(m[1]) * 60 + Number(m[2]);
@@ -122,8 +123,10 @@
     if (m && +m[1] >= 50 && +m[1] <= 230) out.hr = Number(m[1]);
     m = t.match(/(?<![\d.,])(\d{1,2}[.,]\d{3}|\d{1,4})\s*(?:cal|kcal|kkal)\b/i);
     if (m) out.kcal = Number(m[1].replace(/[.,]/g, ''));
-    if (/elev/i.test(t)) {
-      m = t.match(/(?<![\w:.,])([0-9Oo]{1,4})\s?m\b/);
+    // Elevation: the first "<n> m" after the label, skipping times like "2m 23s".
+    const elevAt = t.search(/elev/i);
+    if (elevAt >= 0) {
+      m = t.slice(elevAt).match(/(?<![\w:.,])([0-9Oo]{1,4})\s?m\b(?!\s*\d{1,2}\s?s\b)/);
       if (m) out.elevM = Number(m[1].replace(/o/gi, '0'));
     }
     return out;
@@ -146,9 +149,13 @@
     if (!workerPromise) {
       workerPromise = (async () => {
         if (!root.Tesseract) await loadScript(TESSERACT_URL);
-        return root.Tesseract.createWorker('eng', 1, {
+        const worker = await root.Tesseract.createWorker('eng', 1, {
           logger: (msg) => { if (onProgress) onProgress(msg); },
         });
+        // Automatic page layout. The default (one block of text) skips lines on
+        // screens that mix a map, cards and a grid of numbers.
+        await worker.setParameters({ tessedit_pageseg_mode: '3' });
+        return worker;
       })().catch((e) => { workerPromise = null; throw e; });
     }
     return workerPromise;
@@ -162,7 +169,8 @@
     }, IDLE_MS);
   }
 
-  // Grayscale, light text on dark turned dark-on-light, status bar cropped.
+  // Black text on white: grayscale, dark mode inverted, then thresholded so tinted
+  // cards and badges don't break up the text. Status bar cropped.
   async function prepare(file) {
     const bmp = await createImageBitmap(file);
     const crop = Math.round(bmp.height * 0.04);
@@ -180,7 +188,11 @@
       px[i] = px[i + 1] = px[i + 2] = g;
       sum += g;
     }
-    if (sum / (px.length / 4) < 128) for (let i = 0; i < px.length; i += 4) px[i] = px[i + 1] = px[i + 2] = 255 - px[i];
+    const dark = sum / (px.length / 4) < 128;
+    for (let i = 0; i < px.length; i += 4) {
+      const g = dark ? 255 - px[i] : px[i];
+      px[i] = px[i + 1] = px[i + 2] = g > 150 ? 255 : 0;
+    }
     ctx.putImageData(img, 0, 0);
     return c;
   }
