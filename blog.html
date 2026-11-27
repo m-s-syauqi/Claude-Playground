@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Serba-serbi Lari · Stride</title>
+  <meta name="description" content="Catatan seputar lari: jenis latihan, pace, detak jantung, perlengkapan, nutrisi, sampai tips lari di cuaca panas.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23257de0'/><path d='M8 22 L14 12 L18 18 L24 9' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#f9f9f9" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0b0b" media="(prefers-color-scheme: dark)">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <a class="brand-home" href="index.html" aria-label="Stride, kembali ke jadwal">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><path d="M8 22 L14 12 L18 18 L24 9"/></svg>
+        <h1>Stride</h1>
+      </a>
+      <nav class="app-nav" aria-label="Halaman">
+        <a href="index.html">Plan</a>
+        <a href="blog.html" aria-current="page">Blog</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="blog">
+    <section class="blog-banner">
+      <a href="#/" class="blog-banner-title"><h2>Serba-serbi Lari</h2></a>
+      <p>Catatan seputar lari: jenis latihan, pace, detak jantung, perlengkapan, makan dan minum, sampai tips lari di cuaca panas dan lembap.</p>
+    </section>
+
+    <div class="blog-layout">
+      <div class="blog-main" id="blog-main" tabindex="-1"></div>
+
+      <aside class="blog-side" aria-label="Sidebar">
+        <section class="card side-card">
+          <label class="field">
+            <span>Cari artikel</span>
+            <input type="search" id="blog-search" placeholder="mis. sepatu, pace, cedera" autocomplete="off">
+          </label>
+        </section>
+        <section class="card side-card" aria-labelledby="labels-title">
+          <h3 id="labels-title">Label</h3>
+          <ul class="label-list" id="label-list"></ul>
+        </section>
+        <section class="card side-card" aria-labelledby="all-title">
+          <h3 id="all-title">Semua artikel</h3>
+          <ol class="side-posts" id="side-posts"></ol>
+        </section>
+        <section class="card side-card" aria-labelledby="about-title">
+          <h3 id="about-title">Tentang blog ini</h3>
+          <p class="muted">Ringkasan dari panduan latihan dan penelitian yang umum dipakai pelari, ditulis untuk pelari rekreasi. Bukan pengganti saran dokter atau pelatih. Kalau ada yang sakit, istirahat dan periksakan.</p>
+          <a class="btn btn-ghost side-cta" href="index.html">Buka jadwal lari &rsaquo;</a>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script src="blog.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  </script>
+</body>
+</html>
