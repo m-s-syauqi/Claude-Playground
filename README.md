@@ -45,6 +45,10 @@ Most running apps want an account, a subscription or a GPS watch. Stride doesn't
 3. **Go run.** 👟
 4. **Tick it off.** Mark the run as done, and open it if you want to add your time and notes.
 
+### Install it as an app
+
+On your phone, open Stride in Chrome and choose **⋮ → Add to Home screen** (or **Install app**). On iPhone, use Safari's **Share → Add to Home Screen**. Opened from the home screen icon, Stride runs full-screen without the browser's title and address bar, and it keeps working offline.
+
 ### Keyboard shortcuts
 
 | Key | Action |
@@ -80,6 +84,7 @@ styles.css   styling, light and dark themes
 app.js       planner, stats, chart, storage, import/export
 mcu.html     Ringkasan Lari MCU report page
 mcu.js       report data, charts, table and "Impor ke Stride"
+manifest.webmanifest, sw.js, icons/   installable app (home screen, offline)
 docs/        screenshots used in this README, report PDF
 ```
 
