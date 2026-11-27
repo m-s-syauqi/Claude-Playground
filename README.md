@@ -29,6 +29,7 @@ Most running apps want an account, a subscription or a GPS watch. Stride doesn't
 | | |
 |---|---|
 | 📅 **Plan your week** | A Monday-to-Sunday view of every run, with today highlighted. Add a run to any day in a couple of clicks. |
+| 🗓️ **30-day calendar** | Switch from **Week** to **30 days** to see a month-style calendar of the next 30 days, or step back through earlier 30-day spans. Tap a day to add a run there. |
 | 🏷️ **Mix your training** | Easy runs, long runs, tempo, intervals, recovery and races, each with its own colour. |
 | ✅ **Log as you go** | Tick a run to mark it done. Open it to add actual distance, time and notes, and Stride works out your pace. |
 | 🔁 **Repeat weekly** | Schedule a regular run for 2–16 weeks in one go. |
@@ -55,7 +56,7 @@ On your phone, open Stride in Chrome and choose **⋮ → Add to Home screen** (
 |---|---|
 | `N` | Add a new run |
 | `T` | Jump to this week |
-| `←` / `→` | Previous / next week |
+| `←` / `→` | Previous / next week (or 30 days) |
 
 ## Running it yourself
 

@@ -272,6 +272,59 @@ main {
 .badge-done { color: var(--good-text); background: var(--good-wash); }
 .badge-skipped { color: var(--text-2); background: var(--surface-2); }
 
+/* ---------- 30-day calendar ---------- */
+.week-grid.is-calendar { gap: 6px; }
+.cal-dow { color: var(--text-2); font-size: 0.75rem; font-weight: 600; text-align: center; padding-bottom: 2px; }
+.cal-day {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  min-height: 104px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.cal-day.is-today { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.cal-day.is-past { background: color-mix(in srgb, var(--surface) 70%, var(--page)); }
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.cal-num { font-weight: 600; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.cal-day.is-today .cal-num { color: var(--accent); }
+.cal-mon { color: var(--text-2); font-weight: 500; font-size: 0.75rem; }
+.cal-add {
+  appearance: none; border: 0; background: transparent; color: var(--text-2);
+  width: 22px; height: 22px; border-radius: 6px; padding: 0;
+  font: inherit; font-size: 1rem; line-height: 1; cursor: pointer;
+  opacity: 0;
+}
+.cal-day:hover .cal-add, .cal-add:focus-visible { opacity: 1; }
+.cal-add:hover { background: var(--surface-2); color: var(--text); }
+@media (hover: none) { .cal-add { opacity: 1; } }
+.cal-runs { display: grid; gap: 3px; }
+.cal-run {
+  appearance: none; font: inherit; color: inherit; cursor: pointer; text-align: left;
+  position: relative; width: 100%; min-width: 0;
+  display: flex; align-items: center; gap: 4px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); padding: 3px 5px 3px 9px;
+  font-size: 0.75rem;
+}
+.cal-run:hover { background: var(--surface-2); }
+.cal-run::before {
+  content: ""; position: absolute; left: 3px; top: 4px; bottom: 4px;
+  width: 3px; border-radius: 2px; background: var(--type-color, var(--axis));
+}
+.cal-type { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.cal-dist { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cal-dist small { font-size: inherit; font-weight: 500; color: var(--text-2); }
+.cal-run svg { width: 12px; height: 12px; flex: none; color: var(--good-text); }
+.cal-run.is-done { background: var(--good-wash); border-color: transparent; }
+.cal-run.is-skipped { opacity: 0.6; }
+.cal-run.is-skipped .cal-dist { text-decoration: line-through; }
+.view-toggle { order: 4; }
+
 /* ---------- Lower section ---------- */
 .lower { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 
@@ -451,6 +504,8 @@ a.btn { text-decoration: none; }
 /* ---------- Responsive ---------- */
 @media (max-width: 1000px) {
   .week-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .week-grid.is-calendar { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .cal-type { display: none; }
   .lower { grid-template-columns: 1fr; }
   .report-charts, .report-pair { grid-template-columns: 1fr; }
   .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -462,6 +517,18 @@ a.btn { text-decoration: none; }
   .app-header { padding: 16px 14px 8px; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .week-grid { grid-template-columns: 1fr; }
+  .week-grid.is-calendar { gap: 3px; }
+  .week-nav { flex-wrap: wrap; }
+  .week-title { order: -1; flex-basis: 100%; }
+  .view-toggle { margin-left: auto; }
+  .cal-day { min-height: 64px; padding: 4px 3px; border-radius: 8px; }
+  .cal-head { justify-content: center; }
+  .cal-add { display: none; }
+  .cal-mon { display: block; font-size: 0.65rem; line-height: 1; }
+  .cal-num { text-align: center; }
+  .cal-run { padding: 2px 2px 2px 6px; font-size: 0.68rem; justify-content: center; }
+  .cal-run::before { left: 2px; }
+  .cal-run svg, .cal-dist small { display: none; }
   .day { min-height: 0; }
   .form-grid { grid-template-columns: 1fr; }
   .field.span-2 { grid-column: auto; }

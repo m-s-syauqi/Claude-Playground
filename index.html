@@ -36,7 +36,7 @@
   </header>
 
   <main>
-    <section class="week-nav" aria-label="Week navigation">
+    <section class="week-nav" aria-label="Calendar navigation">
       <button type="button" class="btn btn-ghost icon-btn" id="prev-week" aria-label="Previous week">&#8249;</button>
       <div class="week-title">
         <h2 id="week-label">This week</h2>
@@ -44,6 +44,10 @@
       </div>
       <button type="button" class="btn btn-ghost icon-btn" id="next-week" aria-label="Next week">&#8250;</button>
       <button type="button" class="btn btn-ghost" id="today-btn">Today</button>
+      <div class="segmented view-toggle" role="group" aria-label="Calendar view">
+        <button type="button" data-view="week" aria-pressed="true">Week</button>
+        <button type="button" data-view="days30" aria-pressed="false">30 days</button>
+      </div>
     </section>
 
     <section class="stats" id="stats" aria-label="Week summary"></section>

@@ -1,6 +1,6 @@
 // Network first, so a new deploy shows up straight away; the cache is only
 // used when the device is offline.
-const CACHE = 'stride-v1';
+const CACHE = 'stride-v2';
 const ASSETS = ['./', 'index.html', 'styles.css', 'app.js', 'mcu.html', 'mcu.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {

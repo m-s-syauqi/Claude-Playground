@@ -6,6 +6,7 @@
   const SETTINGS_KEY = 'stride.settings.v1';
   const KM_PER_MI = 1.609344;
   const CHART_WEEKS = 8;
+  const RANGE_DAYS = 30;
 
   const TYPES = [
     { id: 'easy', label: 'Easy run' },
@@ -79,7 +80,9 @@
   const state = {
     runs: [],
     unit: 'km',
+    view: 'week', // 'week' | 'days30'
     weekStart: mondayOf(new Date()),
+    rangeStart: fromISO(todayISO()),
     editingId: null,
   };
 
@@ -91,12 +94,13 @@
     try {
       const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
       if (s.unit === 'mi' || s.unit === 'km') state.unit = s.unit;
+      if (s.view === 'week' || s.view === 'days30') state.view = s.view;
     } catch { /* ignore */ }
   }
   function save() {
     try {
       localStorage.setItem(RUNS_KEY, JSON.stringify(state.runs));
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ unit: state.unit }));
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ unit: state.unit, view: state.view }));
     } catch {
       toast('Could not save. Browser storage may be full or disabled.');
     }
@@ -117,6 +121,11 @@
       notes: typeof r.notes === 'string' ? r.notes.slice(0, 2000) : '',
     };
   }
+
+  // The span of days currently on screen: one Mon–Sun week, or 30 days.
+  const period = () => (state.view === 'week'
+    ? { start: state.weekStart, days: 7 }
+    : { start: state.rangeStart, days: RANGE_DAYS });
 
   const sortRuns = (a, b) => a.date.localeCompare(b.date) || (a.time || '99').localeCompare(b.time || '99');
   const runsBetween = (startISO, endISO) => state.runs.filter((r) => r.date >= startISO && r.date < endISO);
@@ -144,21 +153,32 @@
   }
 
   function renderHeader() {
-    const start = state.weekStart, end = addDays(start, 6);
-    const thisMonday = toISO(mondayOf(new Date()));
-    const diff = Math.round((start - fromISO(thisMonday)) / (7 * 864e5));
-    els.weekLabel.textContent =
-      diff === 0 ? 'This week' : diff === -1 ? 'Last week' : diff === 1 ? 'Next week' :
-      diff < 0 ? `${-diff} weeks ago` : `In ${diff} weeks`;
-    const sameYear = start.getFullYear() === end.getFullYear() && start.getFullYear() === new Date().getFullYear();
+    const { start, days } = period(), end = addDays(start, days - 1);
+    if (state.view === 'week') {
+      const thisMonday = toISO(mondayOf(new Date()));
+      const diff = Math.round((start - fromISO(thisMonday)) / (7 * 864e5));
+      els.weekLabel.textContent =
+        diff === 0 ? 'This week' : diff === -1 ? 'Last week' : diff === 1 ? 'Next week' :
+        diff < 0 ? `${-diff} weeks ago` : `In ${diff} weeks`;
+    } else {
+      const diff = Math.round((start - fromISO(todayISO())) / 864e5);
+      els.weekLabel.textContent =
+        diff === 0 ? 'Next 30 days' : diff === -RANGE_DAYS ? 'Previous 30 days' : '30 days';
+    }
+    const thisYear = new Date().getFullYear();
+    const sameYear = start.getFullYear() === end.getFullYear() && start.getFullYear() === thisYear;
     els.weekRange.textContent = `${shortDate(start)} – ${shortDate(end)}${sameYear ? '' : `, ${end.getFullYear()}`}`;
+    const unitWord = state.view === 'week' ? 'week' : '30 days';
+    $('#prev-week').setAttribute('aria-label', `Previous ${unitWord}`);
+    $('#next-week').setAttribute('aria-label', `Next ${unitWord}`);
+    document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === state.view)));
     document.querySelectorAll('[data-unit]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.unit === state.unit)));
     document.querySelectorAll('.unit-label').forEach((el) => { el.textContent = state.unit; });
   }
 
   function renderStats() {
-    const startISO = toISO(state.weekStart), endISO = toISO(addDays(state.weekStart, 7));
-    const runs = runsBetween(startISO, endISO);
+    const { start, days } = period();
+    const runs = runsBetween(toISO(start), toISO(addDays(start, days)));
     const active = runs.filter((r) => r.status !== 'skipped');
     const done = runs.filter((r) => r.status === 'completed');
     const plannedKm = active.reduce((s, r) => s + (r.plannedKm ?? r.actualKm ?? 0), 0);
@@ -176,7 +196,7 @@
       <div class="card stat">
         <div class="stat-label">Distance</div>
         <div class="stat-value">${fmtNum(toUnit(completedKm))}<small>/ ${fmtNum(toUnit(plannedKm))} ${state.unit}</small></div>
-        <div class="meter" role="progressbar" aria-label="Weekly distance progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}"><span style="width:${pct}%"></span></div>
+        <div class="meter" role="progressbar" aria-label="Distance progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}"><span style="width:${pct}%"></span></div>
       </div>
       <div class="card stat">
         <div class="stat-label">Runs done</div>
@@ -216,19 +236,23 @@
       </div>`;
   }
 
-  function renderWeek() {
-    const today = todayISO();
-    const hasAny = state.runs.length > 0;
-    let html = '';
-    if (!hasAny) {
-      html += `
+  function welcomeCard() {
+    return `
         <div class="card welcome">
           <h3>Plan your first week</h3>
           <p>Add runs to any day below, or start with a sample beginner 10K plan you can edit.</p>
           <button type="button" class="btn btn-primary" data-action="sample">Load sample plan</button>
           <button type="button" class="btn btn-ghost" data-action="add">Add a run</button>
         </div>`;
-    }
+  }
+
+  function renderWeek() {
+    els.grid.classList.toggle('is-calendar', state.view === 'days30');
+    if (state.view === 'days30') { renderCalendar(); return; }
+    els.grid.setAttribute('aria-label', 'Runs this week');
+    const today = todayISO();
+    let html = '';
+    if (!state.runs.length) html += welcomeCard();
     for (let i = 0; i < 7; i++) {
       const d = addDays(state.weekStart, i), iso = toISO(d);
       const runs = state.runs.filter((r) => r.date === iso).sort(sortRuns);
@@ -247,6 +271,45 @@
     els.grid.innerHTML = html;
   }
 
+  function calRun(r) {
+    const done = r.status === 'completed', skipped = r.status === 'skipped';
+    const dist = done ? (r.actualKm ?? r.plannedKm) : r.plannedKm;
+    const distText = dist != null ? fmtNum(toUnit(dist), 1) : '–';
+    const label = `${typeLabel(r.type)}${dist != null ? `, ${fmtDist(dist)}` : ''}, ${done ? 'done' : r.status}${r.time ? `, ${fmtTime(r.time)}` : ''}. Edit`;
+    return `
+      <button type="button" class="cal-run ${done ? 'is-done' : ''} ${skipped ? 'is-skipped' : ''}" style="--type-color:${typeColor(r.type)}"
+              data-edit="${r.id}" aria-label="${escapeHTML(label)}" title="${escapeHTML(label.replace(/\. Edit$/, ''))}">
+        <span class="cal-type">${typeLabel(r.type)}</span>
+        <span class="cal-dist">${distText}<small> ${state.unit}</small></span>
+        ${done ? ICON_CHECK : ''}
+      </button>`;
+  }
+
+  function renderCalendar() {
+    const { start, days } = period();
+    const today = todayISO();
+    els.grid.setAttribute('aria-label', `Runs from ${shortDate(start)} to ${shortDate(addDays(start, days - 1))}`);
+    let html = state.runs.length ? '' : welcomeCard();
+    html += DAY_NAMES.map((d) => `<div class="cal-dow" aria-hidden="true">${d}</div>`).join('');
+    const lead = (start.getDay() + 6) % 7; // grid columns run Monday to Sunday
+    html += '<div class="cal-blank" aria-hidden="true"></div>'.repeat(lead);
+    for (let i = 0; i < days; i++) {
+      const d = addDays(start, i), iso = toISO(d);
+      const runs = state.runs.filter((r) => r.date === iso).sort(sortRuns);
+      const showMonth = i === 0 || d.getDate() === 1;
+      const weekday = DAY_NAMES[(d.getDay() + 6) % 7];
+      html += `
+        <div class="cal-day ${iso === today ? 'is-today' : ''} ${iso < today ? 'is-past' : ''}" data-add-date="${iso}">
+          <div class="cal-head">
+            <span class="cal-num">${d.getDate()}${showMonth ? ` <span class="cal-mon">${MONTHS[d.getMonth()]}</span>` : ''}</span>
+            <button type="button" class="cal-add" data-add-date="${iso}" aria-label="Add run on ${weekday} ${shortDate(d)}">+</button>
+          </div>
+          <div class="cal-runs">${runs.map(calRun).join('')}</div>
+        </div>`;
+    }
+    els.grid.innerHTML = html;
+  }
+
   function niceStep(max, targetTicks = 4) {
     const raw = max / targetTicks;
     const mag = 10 ** Math.floor(Math.log10(raw));
@@ -256,8 +319,10 @@
 
   function weeklySeries() {
     const out = [];
+    const { start: pStart, days } = period();
+    const lastWeek = mondayOf(addDays(pStart, days - 1));
     for (let i = CHART_WEEKS - 1; i >= 0; i--) {
-      const start = addDays(state.weekStart, -7 * i);
+      const start = addDays(lastWeek, -7 * i);
       const runs = runsBetween(toISO(start), toISO(addDays(start, 7)));
       const done = runs.filter((r) => r.status === 'completed');
       out.push({
@@ -408,7 +473,8 @@
 
   function defaultDate() {
     const today = todayISO();
-    const start = toISO(state.weekStart), end = toISO(addDays(state.weekStart, 6));
+    const p = period();
+    const start = toISO(p.start), end = toISO(addDays(p.start, p.days - 1));
     return today >= start && today <= end ? today : start;
   }
 
@@ -571,9 +637,33 @@
     els.typeSelect.innerHTML = TYPES.map((t) => `<option value="${t.id}">${t.label}</option>`).join('');
 
     $('#add-btn').addEventListener('click', () => openDialog());
-    $('#prev-week').addEventListener('click', () => { state.weekStart = addDays(state.weekStart, -7); render(); });
-    $('#next-week').addEventListener('click', () => { state.weekStart = addDays(state.weekStart, 7); render(); });
-    $('#today-btn').addEventListener('click', () => { state.weekStart = mondayOf(new Date()); render(); });
+    const shift = (dir) => {
+      if (state.view === 'week') state.weekStart = addDays(state.weekStart, 7 * dir);
+      else state.rangeStart = addDays(state.rangeStart, RANGE_DAYS * dir);
+      render();
+    };
+    $('#prev-week').addEventListener('click', () => shift(-1));
+    $('#next-week').addEventListener('click', () => shift(1));
+    $('#today-btn').addEventListener('click', () => {
+      state.weekStart = mondayOf(new Date());
+      state.rangeStart = fromISO(todayISO());
+      render();
+    });
+    document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
+      if (state.view === b.dataset.view) return;
+      // Keep roughly the same dates on screen when switching views.
+      if (b.dataset.view === 'days30') {
+        const thisWeek = toISO(state.weekStart) === toISO(mondayOf(new Date()));
+        state.rangeStart = thisWeek ? fromISO(todayISO()) : new Date(state.weekStart);
+      } else {
+        const today = fromISO(todayISO());
+        const inRange = today >= state.rangeStart && today < addDays(state.rangeStart, RANGE_DAYS);
+        state.weekStart = mondayOf(inRange ? today : state.rangeStart);
+      }
+      state.view = b.dataset.view;
+      save();
+      render();
+    }));
     document.querySelectorAll('[data-unit]').forEach((b) => b.addEventListener('click', () => { state.unit = b.dataset.unit; save(); render(); }));
     $('#export-btn').addEventListener('click', exportData);
     $('#import-input').addEventListener('change', (e) => { const file = e.target.files[0]; if (file) importData(file); e.target.value = ''; });
