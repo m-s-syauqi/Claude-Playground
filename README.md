@@ -11,13 +11,16 @@ Dibuat dengan Next.js 16. Data disimpan di Upstash Redis saat online, atau di fi
 
 ## Deploy ke Vercel
 
-1. Buka [vercel.com/new](https://vercel.com/new), lalu import repo `my-wallet` dari GitHub.
+Kode aplikasi ini ada di branch `my-wallet` pada repo `Claude-Playground`.
+
+1. Buka [vercel.com/new](https://vercel.com/new), lalu import repo `Claude-Playground` dari GitHub.
 2. Sebelum klik **Deploy**, buka **Environment Variables** dan isi:
    - `APP_PASSWORD`: password untuk masuk ke aplikasi
    - `SESSION_SECRET`: teks acak minimal 32 karakter. Buat dengan `openssl rand -base64 32`, atau ketik 40+ karakter acak.
-3. Klik **Deploy**.
-4. Di project Vercel, buka tab **Storage**, pilih **Upstash** (Redis), lalu buat database dan hubungkan ke project ini. Vercel otomatis mengisi `KV_REST_API_URL` dan `KV_REST_API_TOKEN`.
-5. Buka tab **Deployments**, lalu klik **Redeploy** pada deployment terakhir supaya database terbaca.
+3. Klik **Deploy**. Deploy pertama memakai branch `main`, yang hanya berisi README, jadi hasilnya belum berupa aplikasi.
+4. Buka **Settings → Environments → Production**, lalu ubah **Branch Tracking** dari `main` menjadi `my-wallet`.
+5. Buka tab **Storage**, pilih **Upstash** (Redis), lalu buat database dan hubungkan ke project ini. Vercel otomatis mengisi `KV_REST_API_URL` dan `KV_REST_API_TOKEN`.
+6. Buka tab **Deployments**, cari deployment dari branch `my-wallet`, lalu pilih **Redeploy** (atau **Promote to Production**).
 
 Setelah itu buka `https://<nama-project>.vercel.app`. Halaman login akan muncul, dan tanpa password tidak ada data yang bisa dilihat.
 
