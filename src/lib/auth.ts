@@ -19,6 +19,25 @@ export function getConfiguredPin(): string {
   return pin;
 }
 
+/** Settings the app needs on Vercel, named without revealing values. */
+export function configProblems(): string[] {
+  const env = process.env;
+  const problems: string[] = [];
+  if (!new RegExp(`^\\d{${PIN_LENGTH}}$`).test(env.APP_PIN ?? "")) {
+    problems.push(`APP_PIN (harus ${PIN_LENGTH} angka)`);
+  }
+  if ((env.SESSION_SECRET ?? "").length < 32) {
+    problems.push("SESSION_SECRET (minimal 32 karakter)");
+  }
+  const hasRedis =
+    (env.KV_REST_API_URL || env.UPSTASH_REDIS_REST_URL) &&
+    (env.KV_REST_API_TOKEN || env.UPSTASH_REDIS_REST_TOKEN);
+  if (env.VERCEL && !hasRedis) {
+    problems.push("database Upstash Redis (KV_REST_API_URL dan KV_REST_API_TOKEN)");
+  }
+  return problems;
+}
+
 export function checkPin(input: string): boolean {
   // Hash both sides so lengths match and comparison is constant-time.
   const a = createHash("sha256").update(input).digest();

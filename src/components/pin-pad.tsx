@@ -27,7 +27,12 @@ export function PinPad() {
 
   const submit = useCallback((value: string) => {
     startTransition(async () => {
-      const result = await login(value);
+      let result: PinState;
+      try {
+        result = await login(value);
+      } catch {
+        result = { error: "Tidak bisa terhubung ke server. Coba lagi." };
+      }
       // On success login() redirects, so we only get here on failure.
       setState(result);
       setNow(Date.now());

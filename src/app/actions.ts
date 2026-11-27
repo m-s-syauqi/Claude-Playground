@@ -3,7 +3,13 @@
 import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
-import { checkPin, endSession, requireAuth, startSession } from "@/lib/auth";
+import {
+  checkPin,
+  configProblems,
+  endSession,
+  requireAuth,
+  startSession,
+} from "@/lib/auth";
 import {
   clearPinFail,
   deleteSeed,
@@ -24,33 +30,40 @@ const LOCK_MINUTES = 15;
 export type PinState = { error?: string; triesLeft?: number; lockedUntil?: number };
 
 export async function login(pin: string): Promise<PinState> {
-  const fail = await getPinFail();
-  if (fail.lockedUntil > Date.now()) {
-    return { error: "Terlalu banyak percobaan.", lockedUntil: fail.lockedUntil };
+  const problems = configProblems();
+  if (problems.length) {
+    return {
+      error: `Pengaturan di Vercel belum lengkap: ${problems.join(", ")}. Lengkapi lalu redeploy.`,
+    };
   }
 
-  let ok = false;
   try {
-    ok = typeof pin === "string" && checkPin(pin);
-  } catch {
-    return { error: "APP_PIN belum diatur di Vercel. Isi dengan 6 angka, lalu redeploy." };
-  }
-
-  if (!ok) {
-    // Slow down guessing, and lock after several wrong PINs in a row.
-    await new Promise((r) => setTimeout(r, 800));
-    const count = fail.count + 1;
-    const lockedUntil =
-      count % MAX_TRIES === 0 ? Date.now() + LOCK_MINUTES * 60_000 : 0;
-    await setPinFail({ count, lockedUntil }, 24 * 60 * 60);
-    if (lockedUntil) {
-      return { error: "Terlalu banyak percobaan.", lockedUntil };
+    const fail = await getPinFail();
+    if (fail.lockedUntil > Date.now()) {
+      return { error: "Terlalu banyak percobaan.", lockedUntil: fail.lockedUntil };
     }
-    return { error: "PIN salah.", triesLeft: MAX_TRIES - (count % MAX_TRIES) };
-  }
 
-  await clearPinFail();
-  await startSession();
+    if (typeof pin !== "string" || !checkPin(pin)) {
+      // Slow down guessing, and lock after several wrong PINs in a row.
+      await new Promise((r) => setTimeout(r, 800));
+      const count = fail.count + 1;
+      const lockedUntil =
+        count % MAX_TRIES === 0 ? Date.now() + LOCK_MINUTES * 60_000 : 0;
+      await setPinFail({ count, lockedUntil }, 24 * 60 * 60);
+      if (lockedUntil) {
+        return { error: "Terlalu banyak percobaan.", lockedUntil };
+      }
+      return { error: "PIN salah.", triesLeft: MAX_TRIES - (count % MAX_TRIES) };
+    }
+
+    await clearPinFail();
+    await startSession();
+  } catch (e) {
+    console.error("login failed", e);
+    return {
+      error: `Gagal masuk: ${e instanceof Error ? e.message : "kesalahan server"}`,
+    };
+  }
   redirect("/");
 }
 
