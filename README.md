@@ -12,7 +12,7 @@ I'm **Muhammad Syairozy Syauqi**, a Process Engineer at **PT. Krakatau Tirta Ind
 
 | Project | What it is |
 | --- | --- |
-| [Stride](https://github.com/MSyairozySyauqi/Claude) | A simple, private running schedule tracker that runs in your browser. Plan your week, log runs and track your weekly distance. |
+| [Stride](https://github.com/m-s-syauqi/Claude-Playground/tree/stride) | A simple, private running schedule tracker that runs in your browser. Plan your week, log runs and track your weekly distance. |
 
 ## Skills
 
