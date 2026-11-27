@@ -511,9 +511,10 @@
     if (prefill) {
       if (prefill.date) f('date').value = prefill.date;
       f('time').value = prefill.time || '';
-      f('status').value = 'completed';
+      if (prefill.type) f('type').value = prefill.type;
+      f('status').value = prefill.status || 'completed';
       f('planned').value = unitVal(prefill.km, 2);
-      f('actual').value = unitVal(prefill.km, 2);
+      f('actual').value = prefill.status === 'planned' ? '' : unitVal(prefill.km, 2);
       f('duration').value = prefill.durationSec ? fmtDuration(prefill.durationSec) : '';
       f('notes').value = prefill.notes || '';
     }
@@ -702,6 +703,47 @@
     const steps = Math.floor(Math.round((d - today) / 864e5) / RANGE_DAYS);
     state.rangeStart = addDays(today, steps * RANGE_DAYS);
     render();
+  }
+
+  // ---------- Suggested run ----------
+  let suggestion = null;
+  function openCoach() {
+    const tomorrow = toISO(addDays(new Date(), 1));
+    suggestion = window.StrideCoach.suggest(state.runs, new Date(), {
+      dist: (km) => fmtDist(km),
+      pace: (sec) => fmtPace(sec, 1),
+      day: (iso) => (iso === todayISO() ? 'Today' : iso === tomorrow ? 'Tomorrow' : fromISO(iso).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })),
+    });
+    const s = suggestion;
+    const pace = s.paceMin && s.paceMax ? `${fmtPace(s.paceMin, 1).replace(` /${state.unit}`, '')}–${fmtPace(s.paceMax, 1)}` : '';
+    const facts = [s.km ? fmtDist(s.km) : '', pace, s.minutes ? `about ${s.minutes} min` : ''].filter(Boolean);
+    $('#coach-card').style.setProperty('--type-color', s.type ? typeColor(s.type) : 'var(--axis)');
+    $('#coach-card').innerHTML = `
+      <span class="coach-when">${escapeHTML(s.when)}</span>
+      <strong class="coach-title">${escapeHTML(s.title)}</strong>
+      ${facts.length ? `<span class="coach-facts">${facts.map((x) => `<span>${escapeHTML(x)}</span>`).join('')}</span>` : ''}
+      <span class="coach-summary">${escapeHTML(s.summary)}</span>`;
+    $('#coach-reasons').innerHTML = s.reasons.map((r) => `<li>${escapeHTML(r)}</li>`).join('');
+    $('#coach-add').hidden = !s.type;
+    $('#coach-dialog').showModal();
+  }
+  function addSuggestion() {
+    const s = suggestion;
+    if (!s || !s.type) return;
+    $('#coach-dialog').close();
+    const pace = s.paceMin && s.paceMax ? `Target pace ${fmtPace(s.paceMin, 1).replace(` /${state.unit}`, '')}–${fmtPace(s.paceMax, 1)}` : '';
+    showDate(s.date);
+    openDialog({
+      prefill: { date: s.date, type: s.type, status: 'planned', km: s.km, notes: [s.title, pace].filter(Boolean).join(' · ') },
+      note: '<b>Suggested run.</b> Change anything you like, then save it to your plan.',
+    });
+  }
+  function bindCoach() {
+    $('#coach-btn').addEventListener('click', openCoach);
+    $('#coach-close').addEventListener('click', () => $('#coach-dialog').close());
+    $('#coach-cancel').addEventListener('click', () => $('#coach-dialog').close());
+    $('#coach-add').addEventListener('click', addSuggestion);
+    $('#coach-dialog').addEventListener('click', (e) => { if (e.target === $('#coach-dialog')) $('#coach-dialog').close(); });
   }
 
   // ---------- Sync between devices ----------
@@ -1003,6 +1045,7 @@
   loadSync();
   bind();
   bindSync();
+  bindCoach();
   render();
   setSyncStatus(sync.status);
   takeSharedImage();

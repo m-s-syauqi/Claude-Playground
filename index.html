@@ -30,6 +30,7 @@
       <button type="button" class="btn btn-ghost" id="export-btn">Export</button>
       <label class="btn btn-ghost" for="shot-input" title="Add a run from a screenshot of Strava or your watch app">From screenshot</label>
       <input type="file" id="shot-input" accept="image/*" hidden>
+      <button type="button" class="btn btn-ghost" id="coach-btn">Suggest run</button>
       <button type="button" class="btn btn-ghost" id="sync-btn"><span class="sync-dot" id="sync-dot" data-state="off" aria-hidden="true"></span>Sync</button>
       <button type="button" class="btn btn-primary" id="add-btn">+ Add run</button>
     </div>
@@ -151,6 +152,24 @@
     </form>
   </dialog>
 
+  <dialog id="coach-dialog" aria-labelledby="coach-title">
+    <div class="coach-body">
+      <div class="dialog-head">
+        <h2 id="coach-title">Suggested run</h2>
+        <button type="button" class="btn btn-ghost icon-btn" id="coach-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="coach-card" id="coach-card"></div>
+      <h3 class="coach-why">Why this run</h3>
+      <ul class="coach-reasons" id="coach-reasons"></ul>
+      <p class="muted coach-foot">Based on the runs you've logged, using simple training rules. Listen to your body: if something hurts, rest.</p>
+      <div class="dialog-actions">
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-ghost" id="coach-cancel">Close</button>
+        <button type="button" class="btn btn-primary" id="coach-add">Add to plan</button>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="sync-dialog" aria-labelledby="sync-title">
     <div class="sync-body">
       <div class="dialog-head">
@@ -193,6 +212,7 @@
 
   <script src="sync-merge.js"></script>
   <script src="screenshot.js"></script>
+  <script src="coach.js"></script>
   <script src="app.js"></script>
   <script>
     if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
