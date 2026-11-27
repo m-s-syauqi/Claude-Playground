@@ -1,0 +1,17 @@
+{
+  "name": "Gerak: rencana per jam, skill & peliharaan",
+  "short_name": "Gerak",
+  "description": "Susun agenda per jam sehari sebelumnya, review tiap jam, naikkan level skill, dan rawat peliharaanmu.",
+  "lang": "id",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f0f14",
+  "theme_color": "#5b5bd6",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

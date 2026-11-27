@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Gerak: rencana per jam, skill & peliharaan</title>
+  <meta name="description" content="Susun agenda per jam sehari sebelumnya, review tiap jam, kumpulkan hadiah, naikkan level skill, dan rawat peliharaanmu.">
+  <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#f6f6f9" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f0f14" media="(prefers-color-scheme: dark)">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Gerak">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <img src="icons/favicon.svg" alt="" class="brand-mark" width="32" height="32">
+      <h1>Gerak</h1>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Menu utama">
+      <button type="button" role="tab" data-tab="today" aria-selected="true"><span class="tab-ico" aria-hidden="true">⏱</span><span>Hari Ini</span><span class="tab-dot" id="tab-dot" hidden></span></button>
+      <button type="button" role="tab" data-tab="plan" aria-selected="false"><span class="tab-ico" aria-hidden="true">🗓</span><span>Rencana</span></button>
+      <button type="button" role="tab" data-tab="skills" aria-selected="false"><span class="tab-ico" aria-hidden="true">⭐</span><span>Skill</span></button>
+      <button type="button" role="tab" data-tab="pet" aria-selected="false"><span class="tab-ico" aria-hidden="true">🥚</span><span id="tab-pet-label">Peliharaan</span></button>
+      <button type="button" role="tab" data-tab="history" aria-selected="false"><span class="tab-ico" aria-hidden="true">📈</span><span>Riwayat</span></button>
+    </nav>
+    <div class="hud">
+      <span class="hud-pill" title="Koin"><span aria-hidden="true">🪙</span> <b id="hud-coins">0</b><span class="sr-only"> koin</span></span>
+      <span class="hud-pill" title="Level Gerak">Lv <b id="hud-level">1</b></span>
+      <button type="button" class="btn btn-ghost icon-btn" id="settings-btn" aria-label="Pengaturan">⚙</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- HARI INI -->
+    <section class="tab-panel" id="panel-today" role="tabpanel" aria-label="Hari ini">
+      <div id="today-banners"></div>
+      <div class="today-top">
+        <div class="card pet-card" id="today-pet"></div>
+        <div class="stats" id="today-stats" aria-label="Ringkasan hari ini"></div>
+      </div>
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2>Agenda hari ini</h2>
+            <p class="muted" id="today-date"></p>
+          </div>
+          <p class="muted small" id="today-rule">Disusun kemarin · review dibuka di menit ke-50 tiap jam</p>
+        </div>
+        <ol class="timeline" id="timeline"></ol>
+      </section>
+    </section>
+
+    <!-- RENCANA -->
+    <section class="tab-panel" id="panel-plan" role="tabpanel" aria-label="Rencana" hidden>
+      <section class="card">
+        <div class="plan-nav">
+          <button type="button" class="btn btn-ghost icon-btn" id="plan-prev" aria-label="Hari sebelumnya">‹</button>
+          <div class="plan-title">
+            <h2 id="plan-label">Rencana besok</h2>
+            <p class="muted" id="plan-date"></p>
+          </div>
+          <button type="button" class="btn btn-ghost icon-btn" id="plan-next" aria-label="Hari berikutnya">›</button>
+        </div>
+        <div class="plan-tools">
+          <p class="muted small" id="plan-summary"></p>
+          <div class="plan-actions">
+            <button type="button" class="btn btn-ghost" id="plan-copy">Salin dari hari ini</button>
+            <button type="button" class="btn btn-ghost" id="plan-clear">Kosongkan</button>
+          </div>
+        </div>
+        <p class="note">Agenda hanya bisa disusun <b>sebelum harinya tiba</b>. Saat tanggalnya mulai, rencana terkunci dan tiap jamnya direview.</p>
+        <ol class="plan-list" id="plan-list"></ol>
+        <datalist id="title-suggest"></datalist>
+      </section>
+    </section>
+
+    <!-- SKILL -->
+    <section class="tab-panel" id="panel-skills" role="tabpanel" aria-label="Skill" hidden>
+      <div class="card player-card" id="player-card"></div>
+      <div class="section-head">
+        <h2>Skill</h2>
+        <button type="button" class="btn btn-primary" id="add-skill">+ Tambah skill</button>
+      </div>
+      <p class="muted small">Hubungkan kegiatan di rencana ke sebuah skill. Tiap jam yang <b>sesuai</b> memberi XP ke skill itu.</p>
+      <div class="skill-grid" id="skill-grid"></div>
+    </section>
+
+    <!-- PELIHARAAN -->
+    <section class="tab-panel" id="panel-pet" role="tabpanel" aria-label="Peliharaan" hidden>
+      <div class="pet-layout">
+        <div class="card pet-card pet-card-big" id="pet-main"></div>
+        <div class="pet-side">
+          <section class="card">
+            <div class="card-head"><h2>Evolusi</h2><p class="muted small" id="evo-sub"></p></div>
+            <ol class="evo" id="evo"></ol>
+          </section>
+          <section class="card">
+            <div class="card-head"><h2>Toko</h2><p class="muted small">Belanja pakai koin hasil kerja kerasmu</p></div>
+            <div class="shop" id="shop"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIWAYAT -->
+    <section class="tab-panel" id="panel-history" role="tabpanel" aria-label="Riwayat" hidden>
+      <div class="stats" id="history-stats"></div>
+      <section class="card">
+        <div class="card-head">
+          <div><h2>Kesesuaian per hari</h2><p class="muted small">14 hari terakhir</p></div>
+          <ul class="legend" aria-label="Keterangan">
+            <li><i class="sw s-sesuai"></i>✓ Sesuai</li>
+            <li><i class="sw s-sebagian"></i>~ Sebagian</li>
+            <li><i class="sw s-meleset"></i>✗ Meleset</li>
+            <li><i class="sw s-terlewat"></i>– Tidak direview</li>
+            <li><i class="sw s-belum"></i>Belum direview</li>
+          </ul>
+        </div>
+        <ol class="days" id="days"></ol>
+      </section>
+      <section class="card">
+        <div class="card-head"><h2>Catatan aktivitas</h2></div>
+        <ol class="log" id="log"></ol>
+      </section>
+    </section>
+  </main>
+
+  <!-- Review dialog -->
+  <dialog id="review-dialog" aria-labelledby="review-title">
+    <form method="dialog" id="review-form">
+      <div class="dialog-head">
+        <h2 id="review-title">Review</h2>
+        <button type="submit" value="cancel" class="btn btn-ghost icon-btn" aria-label="Tutup" formnovalidate>×</button>
+      </div>
+      <p class="muted small">Rencana yang kamu susun kemarin:</p>
+      <div class="review-plan" id="review-plan"></div>
+      <fieldset class="status-pick">
+        <legend>Bagaimana jam ini berjalan?</legend>
+        <label class="opt opt-sesuai"><input type="radio" name="status" value="sesuai" required><span class="opt-ico">✓</span><span class="opt-name">Sesuai</span><span class="opt-rw" data-rw="sesuai"></span></label>
+        <label class="opt opt-sebagian"><input type="radio" name="status" value="sebagian"><span class="opt-ico">~</span><span class="opt-name">Sebagian</span><span class="opt-rw" data-rw="sebagian"></span></label>
+        <label class="opt opt-meleset"><input type="radio" name="status" value="meleset"><span class="opt-ico">✗</span><span class="opt-name">Meleset</span><span class="opt-rw" data-rw="meleset"></span></label>
+      </fieldset>
+      <label class="field">
+        <span>Apa yang sebenarnya kamu lakukan? <span class="muted">(opsional)</span></span>
+        <textarea id="review-actual" rows="2" maxlength="200" placeholder="mis. rapat mendadak, jadi Excel cuma 20 menit"></textarea>
+      </label>
+      <p class="muted small" id="review-hint"></p>
+      <div class="dialog-actions">
+        <button type="submit" value="cancel" class="btn btn-ghost" formnovalidate>Batal</button>
+        <button type="submit" value="ok" class="btn btn-primary">Simpan review</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Skill dialog -->
+  <dialog id="skill-dialog" aria-labelledby="skill-title">
+    <form method="dialog" id="skill-form">
+      <div class="dialog-head">
+        <h2 id="skill-title">Skill baru</h2>
+        <button type="submit" value="cancel" class="btn btn-ghost icon-btn" aria-label="Tutup" formnovalidate>×</button>
+      </div>
+      <label class="field"><span>Nama skill</span><input id="skill-name" required maxlength="40" placeholder="mis. Bahasa Jepang"></label>
+      <fieldset class="icon-pick" id="icon-pick"><legend>Ikon</legend></fieldset>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-danger" id="skill-delete" hidden>Hapus</button>
+        <span class="spacer"></span>
+        <button type="submit" value="cancel" class="btn btn-ghost" formnovalidate>Batal</button>
+        <button type="submit" value="ok" class="btn btn-primary">Simpan</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Settings dialog -->
+  <dialog id="settings-dialog" aria-labelledby="settings-title">
+    <form method="dialog" id="settings-form">
+      <div class="dialog-head">
+        <h2 id="settings-title">Pengaturan</h2>
+        <button type="submit" value="cancel" class="btn btn-ghost icon-btn" aria-label="Tutup" formnovalidate>×</button>
+      </div>
+      <label class="field"><span>Nama peliharaan</span><input id="set-petname" maxlength="20" required></label>
+      <fieldset class="color-pick" id="set-color"><legend>Warna peliharaan</legend></fieldset>
+      <div class="field-row">
+        <label class="field"><span>Mulai aktif</span><select id="set-start"></select></label>
+        <label class="field"><span>Selesai aktif</span><select id="set-end"></select></label>
+      </div>
+      <p class="muted small">Di luar jam aktif, peliharaanmu tidur dan tidak ada slot agenda.</p>
+      <div class="field">
+        <span>Pengingat review tiap jam</span>
+        <button type="button" class="btn btn-ghost" id="set-notify">Aktifkan notifikasi</button>
+        <span class="muted small" id="notify-state"></span>
+      </div>
+      <div class="field">
+        <span>Data</span>
+        <div class="btn-row">
+          <button type="button" class="btn btn-ghost" id="export-btn">Export</button>
+          <label class="btn btn-ghost" for="import-input">Import</label>
+          <input type="file" id="import-input" accept="application/json,.json" hidden>
+          <button type="button" class="btn btn-danger" id="reset-btn">Reset semua</button>
+        </div>
+        <span class="muted small">Semua data tersimpan di perangkat ini saja.</span>
+      </div>
+      <div class="dialog-actions">
+        <button type="submit" value="cancel" class="btn btn-ghost" formnovalidate>Batal</button>
+        <button type="submit" value="ok" class="btn btn-primary">Simpan</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Onboarding -->
+  <dialog id="onboard-dialog" aria-labelledby="onboard-title">
+    <form method="dialog" id="onboard-form">
+      <div class="onboard-hero" id="onboard-egg" aria-hidden="true"></div>
+      <h2 id="onboard-title">Selamat datang di Gerak</h2>
+      <p class="muted">Ini telurmu. Ia menetas dan tumbuh dari setiap jam yang berjalan <b>sesuai rencana</b>.</p>
+      <ol class="how">
+        <li><b>Susun agenda besok</b>, per jam, paling lambat sebelum tengah malam.</li>
+        <li><b>Review tiap jam</b>: sesuai, sebagian, atau meleset.</li>
+        <li><b>Dapat hadiah</b>: XP untuk skill dan koin untuk merawat peliharaan.</li>
+      </ol>
+      <label class="field"><span>Beri nama peliharaanmu</span><input id="ob-name" maxlength="20" value="Gerak" required></label>
+      <fieldset class="color-pick" id="ob-color"><legend>Pilih warnanya</legend></fieldset>
+      <div class="field-row">
+        <label class="field"><span>Mulai aktif</span><select id="ob-start"></select></label>
+        <label class="field"><span>Selesai aktif</span><select id="ob-end"></select></label>
+      </div>
+      <div class="dialog-actions">
+        <button type="submit" value="ok" class="btn btn-primary btn-wide">Mulai &amp; susun agenda besok</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
+  </script>
+</body>
+</html>
