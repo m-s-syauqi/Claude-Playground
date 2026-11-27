@@ -36,6 +36,7 @@ Most running apps want an account, a subscription or a GPS watch. Stride doesn't
 | ⏭️ **Know what's next** | A "Coming up" list of your next planned runs. |
 | 📏 **km or miles** | Switch units at any time. |
 | 💾 **Back up your data** | Export your runs to a file and import them on another device. |
+| 📄 **Ringkasan MCU** | A report page (`mcu.html`) summarising 29 runs at Mandiri Corporate University, Sep–Nov 2026, with charts, insights and a per-run table. One click imports those runs into the planner. |
 
 ## Getting started
 
@@ -77,7 +78,9 @@ Stride saves your runs in your browser's `localStorage`, so:
 index.html   page layout and the add/edit dialog
 styles.css   styling, light and dark themes
 app.js       planner, stats, chart, storage, import/export
-docs/        screenshots used in this README
+mcu.html     Ringkasan Lari MCU report page
+mcu.js       report data, charts, table and "Impor ke Stride"
+docs/        screenshots used in this README, report PDF
 ```
 
 ---
