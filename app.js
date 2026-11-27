@@ -778,7 +778,29 @@
     window.addEventListener('storage', (e) => { if (e.key === RUNS_KEY || e.key === SETTINGS_KEY) { load(); render(); } });
   }
 
+  // An image shared to Stride from another app (Android share sheet). The service
+  // worker stored it; read it once, then clear it.
+  async function takeSharedImage() {
+    if (!new URLSearchParams(location.search).has('shared')) return;
+    history.replaceState(null, '', location.pathname);
+    try {
+      const cache = await caches.open('stride-share');
+      const res = await cache.match('shared-image');
+      if (!res) return;
+      await cache.delete('shared-image');
+      const blob = await res.blob();
+      const file = new File([blob], decodeURIComponent(res.headers.get('x-file-name') || 'screenshot'), {
+        type: blob.type || res.headers.get('content-type') || 'image/jpeg',
+        lastModified: Number(res.headers.get('x-last-modified')) || Date.now(),
+      });
+      addFromScreenshot(file);
+    } catch {
+      toast('Could not open the shared image. Try From screenshot instead.');
+    }
+  }
+
   load();
   bind();
   render();
+  takeSharedImage();
 })();

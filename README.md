@@ -51,6 +51,8 @@ Most running apps want an account, a subscription or a GPS watch. Stride doesn't
 
 On your phone, open Stride in Chrome and choose **⋮ → Add to Home screen** (or **Install app**). On iPhone, use Safari's **Share → Add to Home Screen**. Opened from the home screen icon, Stride runs full-screen without the browser's title and address bar, and it keeps working offline.
 
+Once installed on Android, Stride also shows up in the **share sheet**. In Strava (or your gallery), share a screenshot of a run and pick **Stride**: the app opens with the run filled in, ready to save.
+
 ### Keyboard shortcuts
 
 | Key | Action |
