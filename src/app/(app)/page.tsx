@@ -3,17 +3,17 @@ import { AccountRow, Section } from "@/components/account-row";
 import { Amount } from "@/components/amount";
 import { HideToggle } from "@/components/app-shell";
 import { requireAuth } from "@/lib/auth";
-import { getSeed } from "@/lib/db";
-import { formatCompact, formatShortDate, todayJakarta } from "@/lib/format";
-import { GROUP_NAME, summarize, type Group } from "@/lib/neraca";
+import { loadAccounts } from "@/lib/accounts";
+import { formatCompact, formatShortDate } from "@/lib/format";
+import { GROUP_NAME, type Group } from "@/lib/neraca";
 
 const CASH_GROUPS: Group[] = ["bank", "ewallet", "tunai", "lain"];
 
 export default async function AccountsPage() {
   await requireAuth();
-  const seed = await getSeed();
+  const data = await loadAccounts();
 
-  if (!seed) {
+  if (!data) {
     return (
       <>
         <Hero />
@@ -34,7 +34,7 @@ export default async function AccountsPage() {
     );
   }
 
-  const s = summarize(seed, todayJakarta());
+  const s = data.summary;
   const cards = s.accounts.filter((a) => a.group === "kredit");
 
   return (

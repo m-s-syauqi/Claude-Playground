@@ -37,7 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: hideScript }} />
       </head>
       <body className="font-sans">
-        <div className="mx-auto flex min-h-dvh max-w-md flex-col bg-slate-50 shadow-xl shadow-slate-900/5">
+        <div className="mx-auto flex min-h-dvh max-w-md flex-col bg-slate-50">
           {children}
         </div>
       </body>

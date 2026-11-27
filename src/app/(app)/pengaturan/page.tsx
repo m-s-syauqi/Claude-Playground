@@ -2,12 +2,12 @@ import { logout, removeNeraca } from "@/app/actions";
 import { PageHeader } from "@/components/app-shell";
 import { ImportForm } from "@/components/import-form";
 import { requireAuth } from "@/lib/auth";
-import { getSeed } from "@/lib/db";
+import { loadAccounts } from "@/lib/accounts";
 import { formatShortDate } from "@/lib/format";
 
 export default async function SettingsPage() {
   await requireAuth();
-  const seed = await getSeed();
+  const seed = (await loadAccounts())?.seed;
 
   return (
     <>

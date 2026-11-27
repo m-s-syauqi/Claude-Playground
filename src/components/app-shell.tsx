@@ -18,7 +18,7 @@ export function BottomNav() {
       ? path === "/" || path.startsWith("/akun") || path.startsWith("/platform")
       : path.startsWith(href);
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+    <nav className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]">
       <ul className="grid grid-cols-3">
         {TABS.map(({ href, label, Icon }) => (
           <li key={href}>
@@ -83,7 +83,7 @@ export function PageHeader({
   right?: ReactNode;
 }) {
   return (
-    <header className="sticky top-0 z-10 flex items-center gap-1 border-b border-slate-200 bg-white/95 px-2 pt-[env(safe-area-inset-top)] backdrop-blur">
+    <header className="sticky top-0 z-10 flex items-center gap-1 border-b border-slate-200 bg-white px-2 pt-[env(safe-area-inset-top)]">
       {back ? (
         <Link href={back} aria-label="Kembali" className="rounded-full p-2 text-slate-700">
           <ChevronLeft />

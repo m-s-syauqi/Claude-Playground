@@ -3,13 +3,12 @@ import { Amount } from "@/components/amount";
 import { HideToggle, PageHeader } from "@/components/app-shell";
 import { Avatar } from "@/components/account-row";
 import { requireAuth } from "@/lib/auth";
-import { getSeed } from "@/lib/db";
-import { formatDate, formatShortDate, todayJakarta } from "@/lib/format";
+import { loadAccounts } from "@/lib/accounts";
+import { formatDate, formatShortDate } from "@/lib/format";
 import { decodeParam } from "@/lib/params";
 import {
   GROUP_NAME,
   accountTransactions,
-  summarize,
   type AccountTx,
 } from "@/lib/neraca";
 
@@ -18,11 +17,9 @@ const HISTORY_LIMIT = 150;
 export default async function AccountPage({ params }: PageProps<"/akun/[name]">) {
   await requireAuth();
   const name = decodeParam((await params).name);
-  const seed = await getSeed();
-  if (!seed) notFound();
-
-  const today = todayJakarta();
-  const s = summarize(seed, today);
+  const data = await loadAccounts();
+  if (!data) notFound();
+  const { seed, today, summary: s } = data;
   const account = s.accounts.find((a) => a.name === name);
   if (!account) notFound();
 

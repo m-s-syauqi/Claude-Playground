@@ -131,19 +131,42 @@ export async function deleteTransaction(id: string) {
   await getStore().remove(id);
 }
 
-// Neraca Pribadi data, imported from the artifact's data.js.
+// Neraca Pribadi data, imported from the artifact's data.js. It is about
+// 200 KB, so each server instance keeps a copy in memory instead of reading
+// it from Redis on every page. The version lets a page ask for a newer copy
+// right after an import.
 const SEED_KEY = "mywallet:neraca";
+const SEED_CACHE_MS = 10 * 60_000;
+type StoredSeed = { version: string; seed: Seed };
+let seedCache: (StoredSeed & { loadedAt: number }) | null = null;
 
-export async function getSeed(): Promise<Seed | null> {
-  return getStore().getValue<Seed>(SEED_KEY);
+export async function getSeed(
+  wantVersion?: string,
+): Promise<StoredSeed | null> {
+  if (
+    seedCache &&
+    Date.now() - seedCache.loadedAt < SEED_CACHE_MS &&
+    (!wantVersion || seedCache.version === wantVersion)
+  ) {
+    return seedCache;
+  }
+  const raw = await getStore().getValue<StoredSeed | Seed>(SEED_KEY);
+  // Data imported before versioning was stored as the bare seed.
+  const stored = !raw ? null : "seed" in raw ? raw : { version: "0", seed: raw };
+  seedCache = stored ? { ...stored, loadedAt: Date.now() } : null;
+  return stored;
 }
 
-export async function saveSeed(seed: Seed) {
-  await getStore().setValue(SEED_KEY, seed);
+export async function saveSeed(seed: Seed): Promise<string> {
+  const version = String(Date.now());
+  await getStore().setValue(SEED_KEY, { version, seed });
+  seedCache = { version, seed, loadedAt: Date.now() };
+  return version;
 }
 
 export async function deleteSeed() {
   await getStore().deleteValue(SEED_KEY);
+  seedCache = null;
 }
 
 // Failed PIN attempts, for the lockout.

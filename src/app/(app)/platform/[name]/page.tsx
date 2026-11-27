@@ -3,17 +3,16 @@ import { Amount } from "@/components/amount";
 import { Avatar } from "@/components/account-row";
 import { HideToggle, PageHeader } from "@/components/app-shell";
 import { requireAuth } from "@/lib/auth";
-import { getSeed } from "@/lib/db";
-import { formatShortDate, todayJakarta } from "@/lib/format";
+import { loadAccounts } from "@/lib/accounts";
+import { formatShortDate } from "@/lib/format";
 import { decodeParam } from "@/lib/params";
-import { summarize } from "@/lib/neraca";
 
 export default async function PlatformPage({ params }: PageProps<"/platform/[name]">) {
   await requireAuth();
   const name = decodeParam((await params).name);
-  const seed = await getSeed();
-  if (!seed) notFound();
-  const s = summarize(seed, todayJakarta());
+  const data = await loadAccounts();
+  if (!data) notFound();
+  const s = data.summary;
   const p = s.platforms.find((x) => x.name === name);
   if (!p) notFound();
 

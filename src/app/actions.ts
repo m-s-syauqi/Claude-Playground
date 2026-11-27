@@ -19,6 +19,8 @@ import {
   saveTransaction,
   setPinFail,
 } from "@/lib/db";
+import { cookies } from "next/headers";
+import { SEED_VERSION_COOKIE } from "@/lib/accounts";
 import { parseSeed } from "@/lib/neraca";
 import { CATEGORIES, type TxType } from "@/lib/types";
 
@@ -131,7 +133,14 @@ export async function importNeraca(
   }
   try {
     const seed = parseSeed(await file.text());
-    await saveSeed(seed);
+    const version = await saveSeed(seed);
+    (await cookies()).set(SEED_VERSION_COOKIE, version, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+    });
   } catch (e) {
     return {
       error:
@@ -149,5 +158,13 @@ export async function importNeraca(
 export async function removeNeraca() {
   await requireAuth();
   await deleteSeed();
+  // Make other server instances drop their cached copy for this device.
+  (await cookies()).set(SEED_VERSION_COOKIE, "deleted", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  });
   refresh();
 }
