@@ -139,7 +139,7 @@
     upcoming: $('#upcoming'),
     dialog: $('#run-dialog'), form: $('#run-form'), dialogTitle: $('#dialog-title'),
     deleteBtn: $('#delete-btn'), repeatField: $('#repeat-field'), formError: $('#form-error'),
-    paceOut: $('#pace-output'), typeSelect: $('#type-select'),
+    paceOut: $('#pace-output'), typeSelect: $('#type-select'), formNote: $('#form-note'),
     toast: $('#toast'),
   };
 
@@ -447,10 +447,14 @@
   // ---------- Dialog ----------
   const f = (name) => els.form.elements[name];
 
-  function openDialog({ id = null, date = null } = {}) {
+  // prefill: values read from a screenshot ({ date, time, km, durationSec, notes }), plus
+  // note: an HTML message shown at the top of the dialog.
+  function openDialog({ id = null, date = null, prefill = null, note = '' } = {}) {
     state.editingId = id;
     els.form.reset();
     els.formError.hidden = true;
+    els.formNote.innerHTML = note;
+    els.formNote.hidden = !note;
     const run = id ? state.runs.find((r) => r.id === id) : null;
     els.dialogTitle.textContent = run ? 'Edit run' : 'Add run';
     els.deleteBtn.hidden = !run;
@@ -466,6 +470,15 @@
     f('duration').value = run && run.durationSec ? fmtDuration(run.durationSec) : '';
     f('notes').value = run ? run.notes : '';
     f('repeat').value = '0';
+    if (prefill) {
+      if (prefill.date) f('date').value = prefill.date;
+      f('time').value = prefill.time || '';
+      f('status').value = 'completed';
+      f('planned').value = unitVal(prefill.km, 2);
+      f('actual').value = unitVal(prefill.km, 2);
+      f('duration').value = prefill.durationSec ? fmtDuration(prefill.durationSec) : '';
+      f('notes').value = prefill.notes || '';
+    }
     syncDialog();
     els.dialog.showModal();
     (run ? f('status') : f('planned')).focus();
@@ -622,6 +635,57 @@
     reader.readAsText(file);
   }
 
+  // ---------- Add from screenshot ----------
+  let reading = false;
+  async function addFromScreenshot(file) {
+    if (!file || !/^image\//.test(file.type)) { toast('Choose an image, like a screenshot of Strava or your watch app.'); return; }
+    if (!window.StrideScreenshot) { toast('The screenshot reader did not load. Reload the page and try again.'); return; }
+    if (reading) return;
+    reading = true;
+    const status = (msg) => { clearTimeout(toastTimer); els.toast.innerHTML = `<span>${escapeHTML(msg)}</span>`; els.toast.hidden = false; };
+    status('Reading screenshot…');
+    let r;
+    try {
+      r = await window.StrideScreenshot.readRun(file, (m) => {
+        if (m.status === 'recognizing text') status(`Reading screenshot… ${Math.round(m.progress * 100)}%`);
+        else if (/load/i.test(m.status)) status('Getting the text reader ready…');
+      });
+    } catch (e) {
+      reading = false;
+      toast(e && e.message === 'load'
+        ? 'Could not download the text reader. Check your internet connection and try again.'
+        : 'Could not read that image. Try another screenshot.');
+      return;
+    }
+    reading = false;
+    els.toast.hidden = true;
+
+    const extras = [r.hr && `HR ${r.hr} bpm`, r.kcal && `${r.kcal.toLocaleString()} kcal`, r.elevM != null && `Elev ${r.elevM} m`].filter(Boolean);
+    const missing = [r.km == null && 'distance', !r.durationSec && 'time', r.guessedDate && 'date', !r.time && 'start time'].filter(Boolean);
+    let note;
+    if (r.km == null && !r.durationSec) {
+      note = '<b>Could not find run details in that image.</b> Fill them in below, or try a clearer screenshot.';
+    } else {
+      note = '<b>Filled in from your screenshot.</b> Check the values before saving.';
+      if (missing.length) note += ` Not found: ${missing.join(', ')}.`;
+    }
+    const dup = r.km != null && state.runs.find((x) => x.date === r.date && x.status === 'completed' && Math.abs((x.actualKm ?? x.plannedKm ?? 0) - r.km) < 0.06);
+    if (dup) note += `<br><span class="warn">You already have a ${escapeHTML(fmtDist(doneKm(dup), 2))} run on ${escapeHTML(shortDate(fromISO(r.date)))}. Saving adds a second one.</span>`;
+
+    showDate(r.date);
+    openDialog({ prefill: { ...r, notes: extras.join(' · ') }, note });
+  }
+
+  // Move the calendar so a date is on screen.
+  function showDate(iso) {
+    const d = fromISO(iso);
+    state.weekStart = mondayOf(d);
+    const today = fromISO(todayISO());
+    const steps = Math.floor(Math.round((d - today) / 864e5) / RANGE_DAYS);
+    state.rangeStart = addDays(today, steps * RANGE_DAYS);
+    render();
+  }
+
   // ---------- Toast ----------
   let toastTimer;
   function toast(msg, undo = null, actionLabel = 'Undo', action = undo) {
@@ -667,6 +731,18 @@
     document.querySelectorAll('[data-unit]').forEach((b) => b.addEventListener('click', () => { state.unit = b.dataset.unit; save(); render(); }));
     $('#export-btn').addEventListener('click', exportData);
     $('#import-input').addEventListener('change', (e) => { const file = e.target.files[0]; if (file) importData(file); e.target.value = ''; });
+    $('#shot-input').addEventListener('change', (e) => { const file = e.target.files[0]; if (file) addFromScreenshot(file); e.target.value = ''; });
+    // Paste a screenshot (Ctrl/Cmd+V) or drop one onto the page.
+    document.addEventListener('paste', (e) => {
+      if (els.dialog.open) return;
+      const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
+      if (item) { e.preventDefault(); addFromScreenshot(item.getAsFile()); }
+    });
+    document.addEventListener('dragover', (e) => { if ([...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); });
+    document.addEventListener('drop', (e) => {
+      const file = [...(e.dataTransfer?.files || [])].find((x) => x.type.startsWith('image/'));
+      if (file) { e.preventDefault(); addFromScreenshot(file); }
+    });
 
     document.addEventListener('click', (e) => {
       const t = e.target.closest('[data-toggle],[data-edit],[data-add-date],[data-action]');
