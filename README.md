@@ -17,7 +17,7 @@ Kode aplikasi ini ada di branch `my-wallet` pada repo `Claude-Playground`.
 2. Sebelum klik **Deploy**, buka **Environment Variables** dan isi:
    - `APP_PASSWORD`: password untuk masuk ke aplikasi
    - `SESSION_SECRET`: teks acak minimal 32 karakter. Buat dengan `openssl rand -base64 32`, atau ketik 40+ karakter acak.
-3. Klik **Deploy**. Deploy pertama memakai branch `main`, yang hanya berisi README, jadi hasilnya belum berupa aplikasi.
+3. Klik **Deploy**. Deploy pertama memakai branch `main`, yang hanya berisi README. Hasilnya belum berupa aplikasi dan bisa saja gagal, itu wajar.
 4. Buka **Settings → Environments → Production**, lalu ubah **Branch Tracking** dari `main` menjadi `my-wallet`.
 5. Buka tab **Storage**, pilih **Upstash** (Redis), lalu buat database dan hubungkan ke project ini. Vercel otomatis mengisi `KV_REST_API_URL` dan `KV_REST_API_TOKEN`.
 6. Buka tab **Deployments**, cari deployment dari branch `my-wallet`, lalu pilih **Redeploy** (atau **Promote to Production**).
