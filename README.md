@@ -43,7 +43,9 @@ Telur → Bayi → Anak (tumbuh tunas) → Remaja (punya tangan) → Dewasa (ika
 
 ## Menjalankan
 
-Buka `index.html` di browser. Agar bisa di-install dan dipakai offline, sajikan lewat HTTPS (mis. GitHub Pages), lalu pilih **Add to Home Screen** / **Install app**.
+Buka `index.html` di browser. Agar bisa di-install dan dipakai offline, sajikan lewat HTTPS, lalu pilih **Add to Home Screen** / **Install app**.
+
+Gerak di-deploy ke Vercel sebagai situs statis (tanpa build step). `vercel.json` hanya mengatur header: service worker tidak di-cache agar versi baru langsung terpakai.
 
 Pengingat review tiap jam bisa diaktifkan di ⚙ Pengaturan. Notifikasi muncul selama aplikasi terbuka atau masih berjalan di latar belakang. Browser tidak mengizinkan web app menjadwalkan notifikasi saat benar-benar ditutup tanpa server push.
 
