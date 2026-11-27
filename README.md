@@ -38,8 +38,7 @@ Most running apps want an account, a subscription or a GPS watch. Stride doesn't
 | ⏭️ **Know what's next** | A "Coming up" list of your next planned runs. |
 | 📏 **km or miles** | Switch units at any time. |
 | 🔄 **Sync between devices** | Tap **Sync → Turn on sync** to get a private sync code, then open the sync link (or enter the code) on your other devices. Runs, edits and deletions show up everywhere within a minute. |
-| 💾 **Back up your data** | Export your runs to a file and import them on another device. |
-| 📄 **Ringkasan MCU** | A report page (`mcu.html`) summarising 29 runs at Mandiri Corporate University, Sep–Nov 2026, with charts, insights and a per-run table. One click imports those runs into the planner. |
+| 💾 **Back up your data** | Export your runs to a file as a backup. |
 
 ## Getting started
 
@@ -79,7 +78,7 @@ Without sync, Stride saves your runs only in your browser's `localStorage`, so:
 
 - your data stays on the device and browser you used;
 - clearing your browser data deletes it;
-- using **Export** every so often gives you a backup you can **Import** later.
+- using **Export** every so often gives you a backup file, and turning on **Sync** keeps a copy online.
 
 **With sync turned on**, your runs are also stored online (in the project's Upstash Redis database on Vercel) under a fingerprint of your sync code. There is no account: anyone who has your code can see and change your runs, so keep it to yourself. Turning sync off on a device keeps its runs on that device. Unit and view settings are not synced.
 

@@ -28,18 +28,6 @@
       "purpose": "maskable"
     }
   ],
-  "shortcuts": [
-    {
-      "name": "Ringkasan MCU",
-      "url": "mcu.html",
-      "icons": [
-        {
-          "src": "icons/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    }
-  ],
   "share_target": {
     "action": "./share-target",
     "method": "POST",

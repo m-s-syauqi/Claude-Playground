@@ -641,7 +641,7 @@
     toast('Sample plan loaded. Edit or delete anything.');
   }
 
-  // ---------- Import / export ----------
+  // ---------- Export ----------
   function exportData() {
     const blob = new Blob([JSON.stringify({ app: 'stride', version: 1, exportedAt: new Date().toISOString(), runs: [...state.runs].sort(sortRuns) }, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -651,26 +651,6 @@
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  }
-
-  function importData(file) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(reader.result);
-        const list = Array.isArray(parsed) ? parsed : parsed && Array.isArray(parsed.runs) ? parsed.runs : null;
-        if (!list) throw new Error('bad');
-        const runs = list.map(normalizeRun).filter(Boolean);
-        if (state.runs.length && !confirm(`Replace your ${state.runs.length} current runs with ${runs.length} imported runs?`)) return;
-        state.runs = runs;
-        save();
-        render();
-        toast(`Imported ${runs.length} run${runs.length === 1 ? '' : 's'}`);
-      } catch {
-        toast('That file does not look like a Stride export.');
-      }
-    };
-    reader.readAsText(file);
   }
 
   // ---------- Add from screenshot ----------
@@ -948,7 +928,6 @@
     }));
     document.querySelectorAll('[data-unit]').forEach((b) => b.addEventListener('click', () => { state.unit = b.dataset.unit; save(); render(); }));
     $('#export-btn').addEventListener('click', exportData);
-    $('#import-input').addEventListener('change', (e) => { const file = e.target.files[0]; if (file) importData(file); e.target.value = ''; });
     $('#shot-input').addEventListener('change', (e) => { const file = e.target.files[0]; if (file) addFromScreenshot(file); e.target.value = ''; });
     // Paste a screenshot (Ctrl/Cmd+V) or drop one onto the page.
     document.addEventListener('paste', (e) => {

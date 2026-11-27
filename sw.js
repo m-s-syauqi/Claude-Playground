@@ -1,6 +1,6 @@
 // Network first, so a new deploy shows up straight away; the cache is only
 // used when the device is offline.
-const CACHE = 'stride-v5';
+const CACHE = 'stride-v6';
 // Holds an image shared to Stride from another app until the page picks it up.
 const SHARE_CACHE = 'stride-share';
 const ASSETS = ['./', 'index.html', 'styles.css', 'app.js', 'sync-merge.js', 'screenshot.js', 'mcu.html', 'mcu.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
