@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { importNeraca, type FormState } from "@/app/actions";
+import { pauseAutoLock } from "./auto-lock";
 
 export function ImportForm({ hasData }: { hasData: boolean }) {
   const [state, action, pending] = useActionState<FormState, FormData>(
@@ -15,6 +16,7 @@ export function ImportForm({ hasData }: { hasData: boolean }) {
         name="file"
         accept=".js,.json,text/javascript,application/json"
         required
+        onClick={pauseAutoLock}
         className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-full file:border-0 file:bg-emerald-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-emerald-700"
       />
       {state.error && (

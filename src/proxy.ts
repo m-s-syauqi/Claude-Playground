@@ -1,24 +1,40 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
+import {
+  SESSION_COOKIE,
+  SESSION_COOKIE_OPTIONS,
+  createSessionToken,
+  sessionExpiry,
+  shouldRenew,
+} from "@/lib/session";
 
-// Optimistic check: send anyone without a valid session to /login.
-// Pages and server actions check again with requireAuth().
+// Optimistic check: send anyone without a valid session to /login, and
+// renew the idle timer on every visit. Pages and server actions check the
+// session again with requireAuth().
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const valid = await verifySessionToken(
+  const expiresAt = await sessionExpiry(
     request.cookies.get(SESSION_COOKIE)?.value,
   );
 
   if (pathname === "/login") {
-    return valid
+    return expiresAt
       ? NextResponse.redirect(new URL("/", request.url))
       : NextResponse.next();
   }
 
-  if (!valid) {
+  if (!expiresAt) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
-  return NextResponse.next();
+
+  const response = NextResponse.next();
+  if (shouldRenew(expiresAt)) {
+    response.cookies.set(
+      SESSION_COOKIE,
+      await createSessionToken(),
+      SESSION_COOKIE_OPTIONS,
+    );
+  }
+  return response;
 }
 
 export const config = {

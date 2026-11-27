@@ -4,7 +4,7 @@ Aplikasi keuangan pribadi bergaya aplikasi HP, dikunci dengan PIN.
 
 - **Akun**: saldo semua rekening bank, dompet digital, tunai, kartu kredit (tagihan dan cicilan), serta nilai investasi per platform. Data diambil dari berkas `data.js` artifact *Neraca Pribadi*, dengan rumus yang sama.
 - **Catatan**: catat pemasukan dan pengeluaran harian, lengkap dengan ringkasan bulanan dan grafik per kategori.
-- **PIN 6 angka**: terkunci 15 menit setelah 5 kali salah. Sesi berlaku 30 hari.
+- **PIN 6 angka**, diminta setiap kali aplikasi dibuka, setelah keluar dari aplikasi lebih dari 30 detik, atau setelah 10 menit tidak dipakai. Terkunci 15 menit setelah 5 kali salah.
 - Tombol mata untuk menyamarkan semua angka.
 - Bisa dipasang di layar utama HP seperti aplikasi biasa.
 

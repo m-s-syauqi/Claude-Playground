@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   SESSION_COOKIE,
-  SESSION_MAX_AGE_SECONDS,
+  SESSION_COOKIE_OPTIONS,
   createSessionToken,
   verifySessionToken,
 } from "./session";
@@ -47,13 +47,7 @@ export function checkPin(input: string): boolean {
 
 export async function startSession() {
   const store = await cookies();
-  store.set(SESSION_COOKIE, await createSessionToken(), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_MAX_AGE_SECONDS,
-  });
+  store.set(SESSION_COOKIE, await createSessionToken(), SESSION_COOKIE_OPTIONS);
 }
 
 export async function endSession() {

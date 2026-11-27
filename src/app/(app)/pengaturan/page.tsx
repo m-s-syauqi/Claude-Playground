@@ -50,7 +50,9 @@ export default async function SettingsPage() {
         <Card title="Keamanan">
           <p className="text-sm text-slate-600">
             PIN 6 angka diatur lewat variabel <code className="rounded bg-slate-100 px-1">APP_PIN</code> di
-            Vercel. Setelah 5 kali salah, aplikasi terkunci 15 menit.
+            Vercel. PIN diminta setiap kali aplikasi dibuka, setelah keluar dari
+            aplikasi lebih dari 30 detik, atau setelah 10 menit tidak dipakai.
+            Setelah 5 kali salah, aplikasi terkunci 15 menit.
           </p>
           <form action={logout} className="mt-4">
             <button className="w-full rounded-full border border-slate-300 py-2.5 font-medium text-slate-700 active:bg-slate-50">

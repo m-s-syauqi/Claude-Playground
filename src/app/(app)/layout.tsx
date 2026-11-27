@@ -1,4 +1,5 @@
 import { BottomNav } from "@/components/app-shell";
+import { AutoLock } from "@/components/auto-lock";
 
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
@@ -7,6 +8,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         {children}
       </main>
       <BottomNav />
+      <AutoLock />
     </>
   );
 }
