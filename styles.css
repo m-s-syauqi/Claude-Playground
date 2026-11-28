@@ -473,6 +473,22 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
 }
 .sync-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
+/* ---------- Personal records ---------- */
+.records-view { display: grid; gap: 12px; }
+.records-head h2 { font-size: 1.5rem; letter-spacing: -0.01em; }
+.records-head p { margin-top: 2px; }
+.records-section { margin-top: 10px; font-size: 0.95rem; color: var(--text-2); }
+.records-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.record { display: grid; gap: 2px; align-content: start; text-align: left; font: inherit; color: inherit; padding: 14px 16px; }
+button.record { cursor: pointer; }
+button.record:hover { border-color: var(--accent); }
+.record-label { color: var(--text-2); font-size: 0.82rem; }
+.record-value { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.record.is-empty .record-value { color: var(--axis); }
+.record-sub { color: var(--text-2); font-size: 0.82rem; }
+.record-note { color: var(--accent); font-size: 0.78rem; font-weight: 500; }
+.records-foot { font-size: 0.8rem; margin-top: 6px; }
+
 /* ---------- Page nav (Plan / Blog) ---------- */
 .app-nav { display: flex; gap: 2px; margin-left: 10px; padding: 3px; border-radius: 10px; background: var(--surface-2); }
 .app-nav a { padding: 4px 10px; border-radius: 7px; color: var(--text-2); text-decoration: none; font-size: 0.875rem; font-weight: 500; }
@@ -575,6 +591,9 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
   main { padding: 4px 14px 40px; }
   .app-header { padding: 16px 14px 8px; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .records-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .record { padding: 12px; }
+  .record-value { font-size: 1.3rem; }
   .week-grid { grid-template-columns: 1fr; }
   .week-grid.is-calendar { gap: 3px; }
   .week-nav { flex-wrap: wrap; }

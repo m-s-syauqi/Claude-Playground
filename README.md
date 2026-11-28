@@ -33,6 +33,7 @@ Most running apps want an account, a subscription or a GPS watch. Stride doesn't
 | 🏷️ **Mix your training** | Easy runs, long runs, tempo, intervals, recovery and races, each with its own colour. |
 | ✅ **Log as you go** | Tick a run to mark it done. Open it to add actual distance, time and notes, and Stride works out your pace. |
 | 📰 **Serba-serbi Lari (blog)** | A blog page (**Blog**, next to the logo) with articles in Indonesian about running: types of runs, pace, heart-rate zones, gear and shoes, running in heat, warm-ups and injuries, eating and drinking, technique, your first race and a glossary. It includes a pace and race-time calculator and a heart-rate zone calculator. |
+| 🏅 **Personal records** | The **Records** tab shows your best 3K, 5K, 10K, half and marathon times, longest run and time on feet, fastest pace, biggest week and month, days and weeks in a row, and all-time totals. Tap a record to open its run. When a new run beats a record, Stride tells you. |
 | 💡 **Suggest a run** | Tap **Suggest run** for your next run (rest, recovery, easy, long or tempo) with a distance, a target pace and the reasons, based on what you've logged: days since your last run, this week compared with your 4-week average, whether you've done a long or faster run this week, and heart rate from your notes. **Add to plan** puts it in your schedule. |
 | 📷 **Add from a screenshot** | Tap **From screenshot** and pick a screenshot of a run from Strava or your watch app. Stride reads the date, start time, distance, moving time, heart rate and calories and fills in the form for you to check. You can also paste or drop an image onto the page. |
 | 🔁 **Repeat weekly** | Schedule a regular run for 2–16 weeks in one go. |
@@ -105,6 +106,7 @@ styles.css   styling, light and dark themes
 app.js       planner, stats, chart, storage, import/export
 screenshot.js  reads a run from a screenshot (on-device text recognition)
 coach.js     run suggestions and their reasons (simple training rules)
+records.js   personal records worked out from logged runs
 blog.html, blog.js  Serba-serbi Lari: articles, labels, search and calculators
 sync-merge.js  merge rules shared by the app and the sync function
 api/sync.js  Vercel Function that stores and merges synced runs (Upstash Redis)

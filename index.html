@@ -22,7 +22,8 @@
       <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><path d="M8 22 L14 12 L18 18 L24 9"/></svg>
       <h1>Stride</h1>
       <nav class="app-nav" aria-label="Pages">
-        <a href="index.html" aria-current="page">Plan</a>
+        <a href="index.html" data-page="plan" aria-current="page">Plan</a>
+        <a href="index.html#records" data-page="records">Records</a>
         <a href="blog.html">Blog</a>
       </nav>
     </div>
@@ -41,7 +42,7 @@
   </header>
 
   <main>
-    <section class="week-nav" aria-label="Calendar navigation">
+    <section class="week-nav plan-only" aria-label="Calendar navigation">
       <button type="button" class="btn btn-ghost icon-btn" id="prev-week" aria-label="Previous week">&#8249;</button>
       <div class="week-title">
         <h2 id="week-label">This week</h2>
@@ -55,11 +56,13 @@
       </div>
     </section>
 
-    <section class="stats" id="stats" aria-label="Week summary"></section>
+    <section class="stats plan-only" id="stats" aria-label="Week summary"></section>
 
-    <section class="week-grid" id="week-grid" aria-label="Runs this week"></section>
+    <section class="week-grid plan-only" id="week-grid" aria-label="Runs this week"></section>
 
-    <div class="lower">
+    <section class="records-view" id="records-view" aria-label="Personal records" hidden></section>
+
+    <div class="lower plan-only">
       <section class="card chart-card" aria-labelledby="chart-title">
         <div class="card-head">
           <h3 id="chart-title">Weekly distance completed</h3>
@@ -217,6 +220,7 @@
   <script src="sync-merge.js"></script>
   <script src="screenshot.js"></script>
   <script src="coach.js"></script>
+  <script src="records.js"></script>
   <script src="app.js"></script>
   <script>
     if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

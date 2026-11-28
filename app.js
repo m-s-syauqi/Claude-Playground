@@ -88,6 +88,7 @@
     weekStart: mondayOf(new Date()),
     rangeStart: fromISO(todayISO()),
     editingId: null,
+    page: 'plan', // 'plan' | 'records'
   };
 
   // What each run looked like when last saved (without updatedAt). save() compares
@@ -107,6 +108,7 @@
       state.deleted = Array.isArray(del) ? del.filter((t) => t && typeof t.id === 'string') : [];
     } catch { state.deleted = []; }
     takeSnapshot();
+    recordBase = currentRecords();
     try {
       const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
       if (s.unit === 'mi' || s.unit === 'km') state.unit = s.unit;
@@ -117,9 +119,10 @@
     const now = Date.now();
     const ids = new Set();
     let changed = false;
+    let changedRuns = 0;
     for (const r of state.runs) {
       ids.add(r.id);
-      if (snapshot.get(r.id) !== signature(r)) { r.updatedAt = now; changed = true; }
+      if (snapshot.get(r.id) !== signature(r)) { r.updatedAt = now; changed = true; changedRuns++; }
     }
     const gone = [...snapshot.keys()].filter((id) => !ids.has(id));
     if (gone.length) {
@@ -132,6 +135,23 @@
     takeSnapshot();
     persist();
     if (changed) scheduleSync();
+    celebrateRecords(changedRuns);
+  }
+
+  // ---------- Record celebrations ----------
+  let recordBase = null;
+  function currentRecords() { return window.StrideRecords ? window.StrideRecords.compute(state.runs, todayISO()) : null; }
+  // After a run is added or edited by hand, say so if it set a record. Skipped for
+  // bulk changes (sample plan) and for the first few runs, when everything is a "record".
+  function celebrateRecords(changedRuns) {
+    const before = recordBase;
+    recordBase = currentRecords();
+    if (!before || !recordBase || changedRuns < 1 || changedRuns > 2 || before.count < 3) return;
+    const got = window.StrideRecords.improved(before, recordBase);
+    if (!got.length) return;
+    const list = got.length > 2 ? `${got.slice(0, 2).join(', ')} and ${got.length - 2} more` : got.join(' and ');
+    // After the caller's own toast ("Run added"), so this one is the one you see.
+    setTimeout(() => toast(`🏅 New record: ${list}!`, null, 'See records', () => goPage('records')), 0);
   }
   function persist() {
     try {
@@ -184,6 +204,7 @@
   // ---------- Rendering ----------
   function render() {
     renderHeader();
+    if (state.page === 'records') { renderRecords(); return; }
     renderStats();
     renderWeek();
     renderChart();
@@ -705,6 +726,99 @@
     render();
   }
 
+  // ---------- Pages: Plan / Records ----------
+  const pageFromURL = () => (location.hash === '#records' ? 'records' : 'plan');
+  function showPage() {
+    state.page = pageFromURL();
+    const rec = state.page === 'records';
+    document.querySelectorAll('.plan-only').forEach((n) => { n.hidden = rec; });
+    $('#records-view').hidden = !rec;
+    document.querySelectorAll('.app-nav [data-page]').forEach((a) => {
+      if (a.dataset.page === state.page) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+    document.title = rec ? 'Personal records · Stride' : 'Stride: running schedule tracker';
+    render();
+  }
+  function goPage(page) {
+    const url = page === 'records' ? '#records' : location.pathname + location.search;
+    if (pageFromURL() !== page) history.pushState(null, '', url);
+    showPage();
+    window.scrollTo(0, 0);
+  }
+
+  function renderRecords() {
+    const R = currentRecords();
+    const thisYear = new Date().getFullYear();
+    const day = (iso) => { const d = fromISO(iso); return `${shortDate(d)}${d.getFullYear() === thisYear ? '' : `, ${d.getFullYear()}`}`; };
+    const paceText = (sec) => fmtPace(sec, 1);
+    const tile = ({ label, value, sub = '', note = '', edit = '', week = '', empty = '' }) => {
+      const attrs = edit ? `data-edit="${edit}"` : week ? `data-goto-week="${week}"` : '';
+      const tag = attrs ? 'button type="button"' : 'div';
+      return `
+        <${tag} class="card record ${value ? '' : 'is-empty'}" ${attrs}>
+          <span class="record-label">${escapeHTML(label)}</span>
+          <span class="record-value">${value ? escapeHTML(value) : '–'}</span>
+          ${value ? `<span class="record-sub">${escapeHTML(sub)}</span>` : `<span class="record-sub">${escapeHTML(empty)}</span>`}
+          ${value && note ? `<span class="record-note">${escapeHTML(note)}</span>` : ''}
+        </${attrs ? 'button' : 'div'}>`;
+    };
+    if (!R || !R.count) {
+      $('#records-view').innerHTML = `
+        <div class="records-head"><h2>Personal records</h2></div>
+        <div class="card welcome"><h3>No records yet</h3><p>Mark runs as done and your best times, longest runs and streaks show up here.</p>
+        <button type="button" class="btn btn-primary" data-action="add">Add a run</button></div>`;
+      return;
+    }
+    const first = state.runs.filter((r) => r.status === 'completed').map((r) => r.date).sort()[0];
+    const dist = window.StrideRecords.DISTANCES.map((d) => {
+      const x = R.distances[d.key];
+      const off = x && Math.abs(doneKm(x.run) - d.km) > 0.005;
+      return tile({
+        label: d.label,
+        value: x && fmtDuration(x.sec),
+        sub: x && `${paceText(x.pace)} · ${day(x.run.date)}`,
+        note: x && off ? `From a ${fmtDist(doneKm(x.run), 2)} run` : '',
+        edit: x ? x.run.id : '',
+        empty: `Run about ${d.km >= 21 ? fmtDist(d.km) : fmtDist(d.km, 0)} to set one`,
+      });
+    }).join('');
+    const range = (s) => (s.start === s.end ? day(s.start) : `${day(s.start)} – ${day(s.end)}`);
+    const monthName = (ym) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }); };
+    $('#records-view').innerHTML = `
+      <div class="records-head">
+        <h2>Personal records</h2>
+        <p class="muted">From ${R.count} completed run${R.count === 1 ? '' : 's'} since ${day(first)}.</p>
+      </div>
+
+      <h3 class="records-section">Best times</h3>
+      <div class="records-grid">${dist}</div>
+
+      <h3 class="records-section">Distance and speed</h3>
+      <div class="records-grid">
+        ${tile({ label: 'Longest run', value: R.longest && fmtDist(R.longest.km, 2), sub: R.longest && day(R.longest.run.date), edit: R.longest && R.longest.run.id })}
+        ${tile({ label: 'Longest time on feet', value: R.longestTime && fmtDuration(R.longestTime.sec), sub: R.longestTime && `${fmtDist(doneKm(R.longestTime.run), 2)} · ${day(R.longestTime.run.date)}`, edit: R.longestTime && R.longestTime.run.id, empty: 'Log a duration to set one' })}
+        ${tile({ label: 'Fastest pace', value: R.fastest && paceText(R.fastest.pace), sub: R.fastest && `${fmtDist(doneKm(R.fastest.run), 2)} · ${day(R.fastest.run.date)}`, note: 'Runs of 2 km or more', edit: R.fastest && R.fastest.run.id, empty: 'Log a timed run of 2 km or more' })}
+      </div>
+
+      <h3 class="records-section">Consistency</h3>
+      <div class="records-grid">
+        ${tile({ label: 'Biggest week', value: R.bigWeek && fmtDist(R.bigWeek.km), sub: R.bigWeek && `Week of ${day(R.bigWeek.start)} · ${R.bigWeek.runs} runs`, week: R.bigWeek && R.bigWeek.start })}
+        ${tile({ label: 'Most runs in a week', value: R.busyWeek && `${R.busyWeek.runs} runs`, sub: R.busyWeek && `Week of ${day(R.busyWeek.start)}`, week: R.busyWeek && R.busyWeek.start })}
+        ${tile({ label: 'Biggest month', value: R.bigMonth && fmtDist(R.bigMonth.km), sub: R.bigMonth && `${monthName(R.bigMonth.month)} · ${R.bigMonth.runs} runs` })}
+        ${tile({ label: 'Days in a row', value: R.dayStreak && `${R.dayStreak.len} day${R.dayStreak.len === 1 ? '' : 's'}`, sub: R.dayStreak && range(R.dayStreak), note: `Now: ${R.dayStreakNow} day${R.dayStreakNow === 1 ? '' : 's'}` })}
+        ${tile({ label: 'Weeks in a row', value: R.weekStreak && `${R.weekStreak.len} week${R.weekStreak.len === 1 ? '' : 's'}`, sub: R.weekStreak && `Weeks of ${range(R.weekStreak)}`, note: `Now: ${R.weekStreakNow} week${R.weekStreakNow === 1 ? '' : 's'}` })}
+      </div>
+
+      <h3 class="records-section">All time</h3>
+      <div class="records-grid">
+        ${tile({ label: 'Runs', value: String(R.count), sub: `Since ${day(first)}` })}
+        ${tile({ label: 'Distance', value: fmtDist(R.totalKm), sub: `${fmtDist(R.totalKm / R.count)} per run on average` })}
+        ${tile({ label: 'Time on feet', value: R.totalSec ? fmtDuration(R.totalSec) : '', sub: 'Runs with a duration logged', empty: 'Log durations to see this' })}
+      </div>
+
+      <p class="muted records-foot">Best times come from runs of about that distance (2% short to 10% over), timed at that run's pace over the exact distance. Stride keeps each run's totals, not splits, so a fast 5 km inside a longer run doesn't count. Tap a record to open its run.</p>`;
+  }
+
   // ---------- Suggested run ----------
   let suggestion = null;
   function openCoach() {
@@ -814,6 +928,7 @@
     state.runs = runs;
     state.deleted = merged.deleted;
     takeSnapshot();
+    recordBase = currentRecords();
     persist();
     if (changed) render();
   }
@@ -984,8 +1099,9 @@
     });
 
     document.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-toggle],[data-edit],[data-add-date],[data-action]');
+      const t = e.target.closest('[data-toggle],[data-edit],[data-add-date],[data-action],[data-goto-week]');
       if (!t) return;
+      if (t.dataset.gotoWeek) { state.view = 'week'; save(); showDate(t.dataset.gotoWeek); goPage('plan'); return; }
       if (t.dataset.toggle) { e.stopPropagation(); toggleDone(t.dataset.toggle); }
       else if (t.dataset.edit) openDialog({ id: t.dataset.edit });
       else if (t.dataset.addDate) openDialog({ date: t.dataset.addDate });
@@ -1006,6 +1122,7 @@
 
     document.addEventListener('keydown', (e) => {
       if (els.dialog.open || e.target.matches('input, textarea, select')) return;
+      if (state.page === 'records' && e.key.toLowerCase() !== 'n') return;
       if (e.key === 'ArrowLeft') $('#prev-week').click();
       else if (e.key === 'ArrowRight') $('#next-week').click();
       else if (e.key.toLowerCase() === 'n') { e.preventDefault(); openDialog(); }
@@ -1050,5 +1167,12 @@
   setSyncStatus(sync.status);
   takeSharedImage();
   takeSyncLink();
+  showPage();
+  window.addEventListener('popstate', showPage);
+  window.addEventListener('hashchange', showPage);
+  document.querySelectorAll('.app-nav [data-page]').forEach((a) => a.addEventListener('click', (e) => {
+    e.preventDefault();
+    goPage(a.dataset.page);
+  }));
   syncNow();
 })();
